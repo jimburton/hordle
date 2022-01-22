@@ -64,7 +64,7 @@ inc :: Text -- The target word
     -> [(Char, Int)] -- The attempt
     -> [(Char, Int)] -- A list of pairs of (chars in word but not in right position, their indices)
 inc target attempt = inc' target attempt []
-  where inc' :: Text -> [(Char, Int)] -> [(Char, Int)]
+  where inc' :: Text -> [(Char, Int)] -> [(Char, Int)] -> [(Char, Int)]
         inc' t [] res = res
         inc' t a res = if T.null t
                        then res

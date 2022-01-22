@@ -33,26 +33,23 @@ game target n = do
   let a  = zip (T.unpack attempt) [0..]
       f = fixed target a
       i = inc target a \\ f
-      d = display target (zip (T.unpack attempt) [0..]) f i
+      d = display (zip (T.unpack attempt) [0..]) f i
   TIO.putStrLn d
   if length f == 5
     then TIO.putStrLn $ "Success in " <> T.pack (show (n+1)) <> " attempts!"
     else game target (n+1)
 
-display :: Text          -- The target word
-        -> [(Char, Int)] -- The attempt
+display :: [(Char, Int)] -- The attempt
         -> [(Char, Int)] -- Chars in the right position and their indices
         -> [(Char, Int)] -- Chars in word but in wrong position and their indices
         -> Text          -- Display text
-display target attempt f i =
-  let a     = map fst attempt 
-      l1 = foldr (\x acc ->
-                    if x `elem` f
-                    then "\x2713" <> acc
-                    else if x `elem` i
-                         then "-" <> acc
-                         else "X" <> acc) "" attempt in
-    l1
+display attempt f i =
+  foldr (\x acc ->
+            if x `elem` f
+            then "\x2713" <> acc
+            else if x `elem` i
+                 then "-" <> acc
+                 else "X" <> acc) "" attempt
 
 doWord :: Text                           -- The target word
        -> [(Char, Int)]                  -- The attempt
@@ -70,7 +67,7 @@ inc :: Text -- The target word
     -> [(Char, Int)] -- A list of pairs of (chars in word but not in right position, their indices)
 inc target attempt = inc' target attempt []
   where inc' :: Text -> [(Char, Int)] -> [(Char, Int)] -> [(Char, Int)]
-        inc' t [] res = res
+        inc' _ [] res = res
         inc' t a res = if T.null t
                        then res
                        else let (c,i) = head a in

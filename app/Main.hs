@@ -63,16 +63,18 @@ fixed target a = map (first fst) $ filter (\(cs,_) -> uncurry (==) cs) $ zipWith
 inc :: Text -- The target word
     -> [(Char, Int)] -- The attempt
     -> [(Char, Int)] -- A list of pairs of (chars in word but not in right position, their indices)
--- inc target = filter (\(c,i) -> c `elem` T.unpack target)
 inc target attempt = inc' target attempt []
-  where inc' t [] res = res
+  where inc' :: Text -> [(Char, Int)] -> [(Char, Int)]
+        inc' t [] res = res
         inc' t a res = if T.null t
                        then res
                        else let (c,i) = head a in
                               if c `elem` T.unpack t
                               then inc' (dropOne c t) (tail a) ((c,i):res)
                               else inc' t (tail a) res
-        dropOne c t 
-          | T.null t      = T.empty
-          | c == T.head t = T.tail t
-          | otherwise     = T.head t `T.cons` dropOne c (T.tail t)
+
+dropOne :: Char -> Text -> Text
+dropOne c t 
+  | T.null t      = T.empty
+  | c == T.head t = T.tail t
+  | otherwise     = T.head t `T.cons` dropOne c (T.tail t)

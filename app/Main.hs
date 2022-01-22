@@ -72,8 +72,7 @@ inc target attempt = inc' target attempt []
                               if c `elem` T.unpack t
                               then inc' (dropOne c t) (tail a) ((c,i):res)
                               else inc' t (tail a) res
-        dropOne c t = if T.null t
-                      then T.empty
-                      else if c == T.head t
-                           then T.tail t
-                           else (T.head t) `T.cons` (dropOne c (T.tail t) )
+        dropOne c t 
+          | T.null t      = T.empty
+          | c == T.head t = T.tail t
+          | otherwise     = T.head t `T.cons` dropOne c (T.tail t)

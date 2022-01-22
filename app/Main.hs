@@ -20,34 +20,39 @@ main = do flw <- fiveLetterWords
           w <- (flw !!) <$> getStdRandom (randomR (0, length flw))
           print w
           TIO.putStrLn "\x2713 = char in right place, - = char in word but wrong place, X = char not in word."
-          game (T.toUpper w) [] [] 0
+          game (T.toUpper w) 0
 
-game :: Text -> [(Char, Int)] -> [(Char, Int)] -> Int -> IO ()
-game w _     _   5 = TIO.putStrLn $ "Failed! Word was " <> w
-game w fixed inc n = do
+game :: Text -> Int -> IO ()
+game target 5 = TIO.putStrLn $ "Failed! Word was " <> target
+game target n = do
   TIO.putStrLn $ "Enter a five letter word [Attempt " <> T.pack (show (n+1)) <> "]"
-  x <- T.toUpper . T.take 5 <$> TIO.getLine
+  attempt <- T.toUpper . T.take 5 <$> TIO.getLine
   flw <- fiveLetterWords
-  when (x `notElem` flw) (do TIO.putStrLn $ "Not a word: " <> x
-                             game w fixed inc (n+1))
-  let (d, f, i) = display w (zip (T.unpack x) [0..])
-  TIO.putStrLn (d <> "\n" <> x)
+  when (attempt `notElem` flw) (do TIO.putStrLn $ "Not a word: " <> attempt
+                                   game target (n+1))
+  let a  = zip (T.unpack attempt) [0..]
+      f = fixed target a
+      i = inc target a \\ f
+      d = display target (zip (T.unpack attempt) [0..]) f i
+  TIO.putStrLn d
   if length f == 5
     then TIO.putStrLn $ "Success in " <> T.pack (show (n+1)) <> " attempts!"
-    else game w f i (n+1)
+    else game target (n+1)
 
-display :: Text                                 -- The target word
-        -> [(Char, Int)]                        -- The attempt
-        -> (Text, [(Char, Int)], [(Char, Int)]) -- A triple of (display text, chars in right position, chars in word but wrong position)
-display target attempt = let (f,i) = doWord target attempt
-                             a     = map fst attempt 
-                             l1 = foldr (\x acc ->
-                                           if x `elem` f
-                                           then "\x2713" <> acc
-                                           else if x `elem` i
-                                                then "-" <> acc
-                                                else "X" <> acc) "" attempt in
-                           (l1, f, i)
+display :: Text          -- The target word
+        -> [(Char, Int)] -- The attempt
+        -> [(Char, Int)] -- Chars in the right position and their indices
+        -> [(Char, Int)] -- Chars in word but in wrong position and their indices
+        -> Text          -- Display text
+display target attempt f i =
+  let a     = map fst attempt 
+      l1 = foldr (\x acc ->
+                    if x `elem` f
+                    then "\x2713" <> acc
+                    else if x `elem` i
+                         then "-" <> acc
+                         else "X" <> acc) "" attempt in
+    l1
 
 doWord :: Text                           -- The target word
        -> [(Char, Int)]                  -- The attempt

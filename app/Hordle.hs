@@ -54,7 +54,7 @@ doGuess g = let w = g ^. word
                 r = map (\(c,d) ->
                            if c==d
                            then (d, Correct)
-                           else if d `elem` T.unpack w && T.count (T.singleton d) x <= T.count (T.singleton d) w
+                           else if d `T.elem` w && T.count (T.singleton d) x <= T.count (T.singleton d) w
                                 then (d, InWord)
                                 else (d, Incorrect)) z in
               g & attempts %~ (r:)
@@ -99,7 +99,7 @@ inc target attempt = inc' target attempt []
           if T.null t
           then res
           else let (c,i) = head a in
-                 if c `elem` T.unpack t
+                 if c `T.elem` t
                  then inc' (dropOne c t) (tail a) ((c,i):res)
                  else inc' t (tail a) res
 

@@ -31,7 +31,7 @@ executable hordle
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
     build-depends:    base ^>=4.15.0.0
-                    , text
+                    , text ^>=1.2.5.0
                     , random
                     , containers
                     , microlens

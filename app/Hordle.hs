@@ -49,12 +49,14 @@ getTarget = do
 -- | Enter a guessed word
 doGuess :: Game -> Game
 doGuess g = let w = g ^. word
-                z = w `T.zip` fromJust (g ^. guess)
-                r = map (\(c,d) -> if c==d
-                                   then (d, Correct)
-                                   else if d `elem` T.unpack w
-                                        then (d, InWord)
-                                        else (d, Incorrect)) z in
+                x = fromJust (g ^. guess)
+                z = w `T.zip` x
+                r = map (\(c,d) ->
+                           if c==d
+                           then (d, Correct)
+                           else if d `elem` T.unpack w && T.count (T.singleton d) x <= T.count (T.singleton d) w
+                                then (d, InWord)
+                                else (d, Incorrect)) z in
               g & attempts %~ (r:)
                 & guess    .~ Nothing
 

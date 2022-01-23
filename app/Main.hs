@@ -6,14 +6,20 @@ import           Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import           Data.Char (isAlpha, isAscii)
-import           Data.List ((\\))
+import           Data.List ((\\), sortBy)
 import           Data.Bifunctor (first)
+import qualified Data.Map as Map
+import           Data.Map.Strict (insertWith)
 import           Control.Monad (when)
 
 fiveLetterWords :: IO [Text]
 fiveLetterWords = do
   dict <- map T.toUpper . T.lines <$> TIO.readFile "/etc/dictionaries-common/words"
   pure $ filter ((==5) . T.length) $ filter (T.all (\c -> isAlpha c && isAscii c)) dict
+
+freqTable :: [Text] -> [(Char, Int)]
+freqTable dict = let str = T.concat dict in
+  sortBy (\e1 e2 -> snd e2 `compare` snd e1) $ Map.toList $ T.foldl (\acc x -> insertWith (\_ y -> y+1) x 1 acc) Map.empty str
 
 helpText :: Text
 helpText = "\x2713 = char in right place. \n \

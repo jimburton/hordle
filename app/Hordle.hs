@@ -3,12 +3,16 @@ module Hordle (display, doWord) where
 
 import           Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.Text.IO as TIO
 import           Data.List ((\\), sortBy)
+import           Data.Char (isAlpha, isAscii)
+import           Data.Maybe (fromJust)
 import           Data.Bifunctor (first)
 import qualified Data.Map as Map
 import           Data.Map.Strict (insertWith)
 import           Lens.Micro.TH (makeLenses)
 import           Lens.Micro ((&), (.~), (%~), (^.))
+import           System.Random (getStdRandom, randomR)
 
 data CharStatus = Correct   -- ^ Char is guessed correctly
                 | InWord    -- ^ Char is in the target word but wrong position
@@ -18,24 +22,41 @@ data CharStatus = Correct   -- ^ Char is guessed correctly
 type Guess = [(Char, CharStatus)]
 
 data Game = Game
-  { _word     :: Text    -- ^ The word to guess        
-  , _attempts :: [Guess] -- ^ The previously guessed words
-  , _guess    :: Text    -- ^ The latest guess
-  , _done     :: Bool    -- ^ game over flag
+  { _word     :: Text       -- ^ The word to guess        
+  , _attempts :: [Guess]    -- ^ The previously guessed words
+  , _guess    :: Maybe Text -- ^ The latest guess
+  , _done     :: Bool       -- ^ game over flag
   } deriving (Show)
 
 $(makeLenses ''Game)
 
+-- | Start a new game.
+initGame :: IO Game
+initGame = getTarget >>= \w -> pure Game {_word=w, _attempts=[], _guess=Nothing, _done=False}
+
+-- | A dictionary of five letter words.
+dict :: IO [Text]
+dict = do
+  d <- map T.toUpper . T.lines <$> TIO.readFile "/etc/dictionaries-common/words"
+  pure $ filter ((==5) . T.length) $ filter (T.all (\c -> isAlpha c && isAscii c)) d
+
+-- | Get a word to be the target for a game.
+getTarget :: IO Text
+getTarget = do
+  flw <- dict
+  (flw !!) <$> getStdRandom (randomR (0, length flw))
+          
 -- | Enter a guessed word
 doGuess :: Game -> Game
 doGuess g = let w = g ^. word
-                z = w `T.zip` (g ^. guess)
+                z = w `T.zip` fromJust (g ^. guess)
                 r = map (\(c,d) -> if c==d
                                    then (d, Correct)
                                    else if d `elem` T.unpack w
                                         then (d, InWord)
                                         else (d, Incorrect)) z in
               g & attempts %~ (r:)
+                & guess    .~ Nothing
 
 freqTable :: [Text] -> [(Char, Int)]
 freqTable dict = let str = T.concat dict in

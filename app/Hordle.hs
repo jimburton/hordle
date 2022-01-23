@@ -1,5 +1,5 @@
 {-# LANGUAGE TemplateHaskell, OverloadedStrings #-}
-module Hordle (display, doWord) where
+module Hordle (display, doWord, Game(..)) where
 
 import           Data.Text (Text)
 import qualified Data.Text as T

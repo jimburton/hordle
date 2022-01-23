@@ -36,6 +36,7 @@ executable hordle
                     , containers
                     , microlens
                     , microlens-th
+                    , brick
     hs-source-dirs:   app
     ghc-options: -Wall 
     default-language: Haskell2010

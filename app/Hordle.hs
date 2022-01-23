@@ -20,11 +20,22 @@ type Guess = [(Char, CharStatus)]
 data Game = Game
   { _word     :: Text    -- ^ The word to guess        
   , _attempts :: [Guess] -- ^ The previously guessed words
-  , _guess    :: Guess   -- ^ The latest guess
+  , _guess    :: Text    -- ^ The latest guess
   , _done     :: Bool    -- ^ game over flag
   } deriving (Show)
 
 $(makeLenses ''Game)
+
+-- | Enter a guessed word
+doGuess :: Game -> Game
+doGuess g = let w = g ^. word
+                z = w `T.zip` (g ^. guess)
+                r = map (\(c,d) -> if c==d
+                                   then (d, Correct)
+                                   else if d `elem` T.unpack w
+                                        then (d, InWord)
+                                        else (d, Incorrect)) z in
+              g & attempts %~ (r:)
 
 freqTable :: [Text] -> [(Char, Int)]
 freqTable dict = let str = T.concat dict in

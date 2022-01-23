@@ -15,11 +15,16 @@ fiveLetterWords = do
   dict <- map T.toUpper . T.lines <$> TIO.readFile "/etc/dictionaries-common/words"
   pure $ filter ((==5) . T.length) $ filter (T.all (\c -> isAlpha c && isAscii c)) dict
 
+helpText :: Text
+helpText = "\x2713 = char in right place. \n \
+           \- = char in word but wrong place. \n \
+           \X = char not in word. "
+           
 main :: IO ()
 main = do flw <- fiveLetterWords
           w <- (flw !!) <$> getStdRandom (randomR (0, length flw))
           print w
-          TIO.putStrLn "\x2713 = char in right place, - = char in word but wrong place, X = char not in word."
+          TIO.putStrLn helpText
           game (T.toUpper w) 0
 
 game :: Text -> Int -> IO ()

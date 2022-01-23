@@ -25,7 +25,8 @@ executable hordle
     main-is:          Main.hs
 
     -- Modules included in this executable, other than Main.
-    -- other-modules:
+    other-modules:  Hordle
+                  , UI
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
@@ -33,6 +34,8 @@ executable hordle
                     , text
                     , random
                     , containers
+                    , microlens
+                    , microlens-th
     hs-source-dirs:   app
     ghc-options: -Wall 
     default-language: Haskell2010

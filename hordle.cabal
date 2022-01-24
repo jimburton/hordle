@@ -37,6 +37,27 @@ executable hordle
                     , microlens
                     , microlens-th
                     , brick
+                    , vty
     hs-source-dirs:   app
     ghc-options: -Wall 
+    default-language: Haskell2010
+
+executable ui
+    main-is:          UI-Main.hs
+
+    -- Modules included in this executable, other than Main.
+    other-modules:  Hordle
+
+    -- LANGUAGE extensions used by modules in this package.
+    -- other-extensions:
+    build-depends:    base ^>=4.15.0.0
+                    , text ^>=1.2.5.0
+                    , random
+                    , containers
+                    , microlens
+                    , microlens-th
+                    , brick
+                    , vty
+    hs-source-dirs:   app
+    ghc-options:      -threaded -Wall 
     default-language: Haskell2010

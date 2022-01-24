@@ -1,39 +1,58 @@
 {-# LANGUAGE TemplateHaskell, OverloadedStrings #-}
-module Hordle (display, doWord, Game(..)) where
+module Hordle (display, doWord, Game(..), dict, findWords, findWord) where
 
 import           Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
-import           Data.List ((\\), sortBy)
+import           Data.List ((\\), sortBy, foldl')
 import           Data.Char (isAlpha, isAscii)
-import           Data.Maybe (fromJust)
+import           Data.Maybe (fromJust, listToMaybe)
 import           Data.Bifunctor (first)
+import           Data.Map (Map)
 import qualified Data.Map as Map
+import           Data.Set (Set)
+import qualified Data.Set as Set
 import           Data.Map.Strict (insertWith)
 import           Lens.Micro.TH (makeLenses)
 import           Lens.Micro ((&), (.~), (%~), (^.))
 import           System.Random (getStdRandom, randomR)
 
-data CharStatus = Correct   -- ^ Char is guessed correctly
-                | InWord    -- ^ Char is in the target word but wrong position
-                | Incorrect -- ^ Char is not in the target word
+data CharStatus = Correct Int      -- ^ Char is at this index
+                | InWord (Set Int) -- ^ Char is in the target word but not at any of these positions
+                | Incorrect        -- ^ Char is not in the target word
                 deriving (Show, Eq)
 
 type Guess = [(Char, CharStatus)]
 
 data Game = Game
-  { _word     :: Text       -- ^ The word to guess        
-  , _attempts :: [Guess]    -- ^ The previously guessed words
-  , _guess    :: Maybe Text -- ^ The latest guess
-  , _done     :: Bool       -- ^ game over flag
+  { _word   :: Text                -- ^ The word to guess        
+  , _info   :: Map Char CharStatus -- ^ Info on previous guesses
+  , _guess  :: Maybe Text          -- ^ The latest guess
+  , _done   :: Bool                -- ^ game over flag
   } deriving (Show)
 
 $(makeLenses ''Game)
 
 -- | Start a new game.
 initGame :: IO Game
-initGame = getTarget >>= \w -> pure Game {_word=w, _attempts=[], _guess=Nothing, _done=False}
+initGame = getTarget >>= \w -> pure Game {_word=w, _info=Map.empty, _guess=Nothing, _done=False}
 
+-- | Enter a guessed word
+doGuess :: Game -> Game
+doGuess g = let w = g ^. word
+                x = fromJust (g ^. guess)
+                z = zip (w `T.zip` x) [0..]
+                r = map (\((c,d),i) ->
+                           if c==d
+                           then (d, Correct i)
+                           else if d `T.elem` w && T.count (T.singleton d) x <= T.count (T.singleton d) w
+                                then (d, InWord (Set.singleton i))
+                                else (d, Incorrect)) z in
+              g & info %~ (\m -> foldl' (\acc (d,s) -> case s of
+                                            (InWord si) -> Map.insertWith (\(InWord old) (InWord new) -> InWord (Set.union old new)) d (InWord si) acc
+                                            s'          -> Map.insert d s' acc) m r)
+                & guess    .~ Nothing
+              
 -- | A dictionary of five letter words.
 dict :: IO [Text]
 dict = do
@@ -45,23 +64,29 @@ getTarget :: IO Text
 getTarget = do
   flw <- dict
   (flw !!) <$> getStdRandom (randomR (0, length flw))
-          
--- | Enter a guessed word
-doGuess :: Game -> Game
-doGuess g = let w = g ^. word
-                x = fromJust (g ^. guess)
-                z = w `T.zip` x
-                r = map (\(c,d) ->
-                           if c==d
-                           then (d, Correct)
-                           else if d `T.elem` w && T.count (T.singleton d) x <= T.count (T.singleton d) w
-                                then (d, InWord)
-                                else (d, Incorrect)) z in
-              g & attempts %~ (r:)
-                & guess    .~ Nothing
+
+-- | Find words based on a number of constraints
+findWords :: [(Char, Either Int [Int])] -- ^ Chars that are in the words, either at an exact index or not in any of a list of indices.
+          -> [Char]                     -- ^ Chars that are not in the words.
+          -> [Text]                     -- ^ The list of words to search.
+          -> [Text]                     -- ^ The matching words.
+findWords inc out =
+  filter (\t ->
+            all (\(c,pos) ->
+                    case pos of
+                      (Left i)   -> T.index t i == c
+                      (Right os) -> T.elem c t && fromJust (T.findIndex (==c) t) `notElem` os) inc
+            && not (any (`T.elem` t) out))
+
+-- | Find a single word based on a number of constraints
+findWord :: [(Char, Either Int [Int])] -- ^ Chars that are in the word, either at an exact index or not in any of a list of indices.
+         -> [Char]                     -- ^ Chars that are not in the word.
+         -> [Text]                     -- ^ The list of words to search.
+         -> Maybe Text                 -- ^ The matching word, if it exists.
+findWord inc out = listToMaybe . findWords inc out 
 
 freqTable :: [Text] -> [(Char, Int)]
-freqTable dict = let str = T.concat dict in
+freqTable d = let str = T.concat d in
   sortBy (\e1 e2 -> snd e2 `compare` snd e1) $ Map.toList $ T.foldl
   (\acc x -> insertWith (\_ y -> y+1) x 1 acc) Map.empty str
 

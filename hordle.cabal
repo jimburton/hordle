@@ -38,6 +38,7 @@ executable hordle
                     , microlens-th
                     , brick
                     , vty
+                    , haskeline
     hs-source-dirs:   app
     ghc-options: -Wall 
     default-language: Haskell2010
@@ -58,6 +59,7 @@ executable ui
                     , microlens-th
                     , brick
                     , vty
+                    , haskeline
     hs-source-dirs:   app
     ghc-options:      -threaded -Wall 
     default-language: Haskell2010

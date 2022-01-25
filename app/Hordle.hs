@@ -1,5 +1,16 @@
 {-# LANGUAGE TemplateHaskell, OverloadedStrings #-}
-module Hordle (display, doWord, Game(..), dict, findWords, findWord, initGame, doGuess) where
+module Hordle ( Game(..)
+              , done
+              , attempts
+              , success
+              , word
+              , CharInfo(..)
+              , initGame
+              , doGuess
+              , hint
+              , hints
+              , targets
+              , isDictWord ) where
 
 import           Data.Text (Text)
 import qualified Data.Text as T
@@ -14,66 +25,110 @@ import           Data.Set (Set)
 import qualified Data.Set as Set
 import           Data.Map.Strict (insertWith)
 import           Lens.Micro.TH (makeLenses)
-import           Lens.Micro ((&), (.~), (%~), (^.))
+import           Lens.Micro ((&), (.~), (%~), (^.), (?~))
 import           System.Random (getStdRandom, randomR)
+import           Data.Functor ((<&>))
 
-data CharStatus = Correct Int      -- ^ Char is at this index
-                | InWord (Set Int) -- ^ Char is in the target word but not at any of these positions
-                | Incorrect        -- ^ Char is not in the target word
+data CharInfo = Correct Int        -- ^ Char is at this index.
+                | InWord (Set Int) -- ^ Char is in the target word but not at any of these positions.
+                | Incorrect        -- ^ Char is not in the target word.
                 deriving (Show, Eq)
 
-type Guess = [(Char, CharStatus)]
+type Guess = [(Char, CharInfo)]
 
 data Game = Game
-  { _word   :: Text                -- ^ The word to guess        
-  , _info   :: Map Char CharStatus -- ^ Info on previous guesses
-  , _guess  :: Maybe Text          -- ^ The latest guess
-  , _done   :: Bool                -- ^ game over flag
+  { _word     :: Text              -- ^ The word to guess.
+  , _attempts :: [Guess]           -- ^ Previous attempts.
+  , _info     :: Map Char CharInfo -- ^ Info on previous guesses.
+  , _guess    :: Maybe Text        -- ^ The latest guess.
+  , _done     :: Bool              -- ^ game over flag.
+  , _success  :: Bool              -- ^ Game was won.
   } deriving (Show)
 
 $(makeLenses ''Game)
 
 -- | Start a new game.
 initGame :: IO Game
-initGame = getTarget >>= \w -> pure Game {_word=w, _info=Map.empty, _guess=Nothing, _done=False}
+initGame = getTarget >>= \w -> pure Game {_word=w
+                                         , _attempts=[]
+                                         , _info    =Map.empty
+                                         , _guess   =Nothing
+                                         , _done    =False
+                                         , _success =False}
 
--- | Enter a guessed word
-doGuess :: Game -> Game
-doGuess g = let w = g ^. word
-                x = fromJust (g ^. guess)
-                z = zip (w `T.zip` x) [0..]
-                r = map (\((c,d),i) ->
-                           if c==d
-                           then (d, Correct i)
-                           else if d `T.elem` w && T.count (T.singleton d) x <= T.count (T.singleton d) w
-                                then (d, InWord (Set.singleton i))
-                                else (d, Incorrect)) z in
-              g & info %~ (\m -> foldl' (\acc (d,s) ->
-                                            case s of
-                                              (InWord si) -> Map.insertWith
-                                                (\(InWord new) old ->
-                                                   case old of
-                                                     (InWord o) -> InWord (Set.union o new)
-                                                     o'         -> o') d (InWord si) acc
-                                              s'          -> case Map.lookup d acc of
-                                                               (Just (Correct i)) -> acc
-                                                               _                  -> Map.insert d s' acc) m r)
-                & guess    .~ Nothing
+-- | Enter a guessed word into the game, updating the record accordingly.
+doGuess :: Game -> Text -> Game
+doGuess g attempt =
+  let w = g ^. word
+      x = zip (T.unpack attempt) [0..]
+      a =  processAttempt w x in  
+    -- update the info map. 
+    endGame $ g & info %~ (\m ->
+                             foldl' (\acc (d,s) ->
+                                       case s of
+                                         (InWord si) -> Map.insertWith
+                                           (\(InWord new) old ->
+                                              case old of
+                                                -- update the set of indices in which this char occurs
+                                                (InWord o) -> InWord (Set.union o new)
+                                                -- was previously Correct, keep it that way and ignore the new info.
+                                                o'         -> o') d (InWord si) acc
+                                         -- chars which are correct and incorrect
+                                         s'          -> case Map.lookup d acc of
+                                                          (Just (Correct _)) -> acc
+                                                          _                  -> Map.insert d s' acc) m a)
+      & attempts %~ (a:)
+      & guess    ?~ attempt
+
+endGame :: Game -> Game
+endGame g = let won = all (isCorrect . snd) (head (g ^. attempts)) in
+              g & success .~ won
+                & done .~ (length (g ^. attempts) == 5 || won)
+
+-- | Predicates for types of CharInfo.
+isCorrect, isInWord, isIncorrect :: CharInfo -> Bool
+isCorrect (Correct _) = True
+isCorrect _           = False
+isInWord  (InWord _)  = True
+isInWord  _           = False
+isIncorrect Incorrect = True
+isIncorrect _         = False
+
+-- | Get all hints based on the constraints.
+hints :: Game -> IO [Text]
+hints g = do
+  let inf = Map.toList $ g ^. info
+      inc = map (\(c,i) -> case i of
+                             (Correct j) -> (c,Left j)
+                             (InWord s)  -> (c,Right s)) $ filter ((not . isIncorrect) . snd) inf
+      out = map fst $ filter (\(c,i) -> isIncorrect i) inf
+  d <- dict
+  pure $ findWords inc out d
+
+-- | Get a single hint based on the constraints.
+hint :: Game -> IO (Maybe Text)
+hint g = listToMaybe <$> hints g
               
 -- | A dictionary of five letter words.
 dict :: IO [Text]
-dict = do
-  d <- map T.toUpper . T.lines <$> TIO.readFile "/etc/dictionaries-common/words"
-  pure $ filter ((==5) . T.length) $ filter (T.all (\c -> isAlpha c && isAscii c)) d
+dict = T.lines <$> TIO.readFile "etc/dict.txt"
+
+-- | Is a word in the doctionary?
+isDictWord :: Text -> IO Bool
+isDictWord t = pure True -- dict >>= \d -> pure $ any (elem t) d
+  
+-- | A list of relatively common words to use as targets.
+targets :: IO [Text]
+targets = T.lines <$> TIO.readFile "etc/starting.txt"
 
 -- | Get a word to be the target for a game.
 getTarget :: IO Text
 getTarget = do
-  flw <- dict
+  flw <- targets
   (flw !!) <$> getStdRandom (randomR (0, length flw))
 
 -- | Find words based on a number of constraints
-findWords :: [(Char, Either Int [Int])] -- ^ Chars that are in the words, either at an exact index or not in any of a list of indices.
+findWords :: [(Char, Either Int (Set Int))] -- ^ Chars that are in the words, either at an exact index or not in any of a list of indices.
           -> [Char]                     -- ^ Chars that are not in the words.
           -> [Text]                     -- ^ The list of words to search.
           -> [Text]                     -- ^ The matching words.
@@ -82,11 +137,11 @@ findWords inc out =
             all (\(c,pos) ->
                     case pos of
                       (Left i)   -> T.index t i == c
-                      (Right os) -> T.elem c t && fromJust (T.findIndex (==c) t) `notElem` os) inc
+                      (Right os) -> T.elem c t && fromJust (T.findIndex (==c) t) `Set.notMember` os) inc
             && not (any (`T.elem` t) out))
 
 -- | Find a single word based on a number of constraints
-findWord :: [(Char, Either Int [Int])] -- ^ Chars that are in the word, either at an exact index or not in any of a list of indices.
+findWord :: [(Char, Either Int (Set Int))] -- ^ Chars that are in the word, either at an exact index or not in any of a list of indices.
          -> [Char]                     -- ^ Chars that are not in the word.
          -> [Text]                     -- ^ The list of words to search.
          -> Maybe Text                 -- ^ The matching word, if it exists.
@@ -97,42 +152,38 @@ freqTable d = let str = T.concat d in
   sortBy (\e1 e2 -> snd e2 `compare` snd e1) $ Map.toList $ T.foldl
   (\acc x -> insertWith (\_ y -> y+1) x 1 acc) Map.empty str
 
-display :: [(Char, Int)] -- ^ The attempt
-        -> [(Char, Int)] -- ^ Chars in the right position and their indices
-        -> [(Char, Int)] -- ^ Chars in word but in wrong position and their indices
-        -> Text          -- ^ Display text
-display attempt f i =
-  foldr (\x acc ->
-            if x `elem` f
-            then "\x2713" <> acc
-            else if x `elem` i
-                 then "-" <> acc
-                 else "X" <> acc) "" attempt
+-- | Set the status of each char in a guess.
+processAttempt :: Text       -- ^ The target word
+       -> [(Char, Int)]      -- ^ The attempt
+       -> [(Char, CharInfo)] -- ^ A pair of chars and their status in the guess.
+processAttempt target attempt =
+  let w' = T.unpack target
+      iw = inc target attempt in
+    map (\(c, (d,i)) -> if c==d
+                        then (d, Correct i)
+                        else if d `notElem` w'
+                             then (d, Incorrect)
+                             else (d, maybeInc iw (d,i))) (zip w' attempt)
 
-doWord :: Text                           -- ^ The target word
-       -> [(Char, Int)]                  -- ^ The attempt
-       -> ([(Char, Int)], [(Char, Int)]) -- ^ A pair of (chars in right position, chars in word but wrong position)
-doWord target attempt = let f  = fixed target attempt in
-                          (f, inc target attempt \\ f)
+maybeInc :: [(Char, CharInfo)] -> (Char, Int) -> CharInfo
+maybeInc [] _                      = Incorrect
+maybeInc ((c, InWord si):iw) (d,i) = if c==d && Set.member i si
+                                     then InWord si
+                                     else maybeInc iw (d,i)
+maybeInc (_:iw) di                 = maybeInc iw di
 
-fixed :: Text          -- ^ The target word
-      -> [(Char, Int)] -- ^ The attempt
-      -> [(Char, Int)] -- ^ A list of pairs of (chars in the right position, their indices)
-fixed target a = map (first fst) $ filter (\(cs,_) -> uncurry (==) cs) $ zipWith
-  (\c (d,i) -> ((c,d),i)) (T.unpack target) a
-
-inc :: Text -- The target word
+inc :: Text -- ^ The target word
     -> [(Char, Int)] -- ^ The attempt
-    -> [(Char, Int)] -- ^ A list of pairs of (chars in word but not in right position, their indices)
+    -> [(Char, CharInfo)] -- ^ A list of pairs of (chars in word but not in right position, their indices)
 inc target attempt = inc' target attempt []
-  where inc' :: Text -> [(Char, Int)] -> [(Char, Int)] -> [(Char, Int)]
+  where inc' :: Text -> [(Char, Int)] -> [(Char, CharInfo)] -> [(Char, CharInfo)]
         inc' _ [] res = res
         inc' t a res  =
           if T.null t
           then res
           else let (c,i) = head a in
                  if c `T.elem` t
-                 then inc' (dropOne c t) (tail a) ((c,i):res)
+                 then inc' (dropOne c t) (tail a) ((c, InWord (Set.singleton i)):res)
                  else inc' t (tail a) res
 
 dropOne :: Char -> Text -> Text

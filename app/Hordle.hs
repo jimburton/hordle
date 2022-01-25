@@ -1,5 +1,5 @@
 {-# LANGUAGE TemplateHaskell, OverloadedStrings #-}
-module Hordle (display, doWord, Game(..), dict, findWords, findWord) where
+module Hordle (display, doWord, Game(..), dict, findWords, findWord, initGame, doGuess) where
 
 import           Data.Text (Text)
 import qualified Data.Text as T
@@ -48,9 +48,16 @@ doGuess g = let w = g ^. word
                            else if d `T.elem` w && T.count (T.singleton d) x <= T.count (T.singleton d) w
                                 then (d, InWord (Set.singleton i))
                                 else (d, Incorrect)) z in
-              g & info %~ (\m -> foldl' (\acc (d,s) -> case s of
-                                            (InWord si) -> Map.insertWith (\(InWord old) (InWord new) -> InWord (Set.union old new)) d (InWord si) acc
-                                            s'          -> Map.insert d s' acc) m r)
+              g & info %~ (\m -> foldl' (\acc (d,s) ->
+                                            case s of
+                                              (InWord si) -> Map.insertWith
+                                                (\(InWord new) old ->
+                                                   case old of
+                                                     (InWord o) -> InWord (Set.union o new)
+                                                     o'         -> o') d (InWord si) acc
+                                              s'          -> case Map.lookup d acc of
+                                                               (Just (Correct i)) -> acc
+                                                               _                  -> Map.insert d s' acc) m r)
                 & guess    .~ Nothing
               
 -- | A dictionary of five letter words.

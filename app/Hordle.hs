@@ -10,6 +10,7 @@ module Hordle ( Game(..)
               , hint
               , hints
               , targets
+              , dict
               , isDictWord ) where
 
 import           Data.Text (Text)
@@ -113,9 +114,9 @@ hint g = listToMaybe <$> hints g
 dict :: IO [Text]
 dict = T.lines <$> TIO.readFile "etc/dict.txt"
 
--- | Is a word in the doctionary?
+-- | Is a word in the dictionary?
 isDictWord :: Text -> IO Bool
-isDictWord t = pure True -- dict >>= \d -> pure $ any (elem t) d
+isDictWord t = dict <&> elem t 
   
 -- | A list of relatively common words to use as targets.
 targets :: IO [Text]

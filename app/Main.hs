@@ -73,7 +73,7 @@ gameOver g = if g ^. success
              then TIO.putStrLn "Well done!"
              else TIO.putStrLn $ "Hard luck! The word was " <> (g ^. word)
 
--- | Draw the game grid and it's contents.'
+-- | Draw the game grid.
 drawGrid :: Game -> IO ()
 drawGrid g = do
   let as = reverse $ g ^. attempts

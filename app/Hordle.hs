@@ -2,6 +2,7 @@
 module Hordle ( Game(..)
               , done
               , attempts
+              , numAttempts
               , success
               , word
               , guess
@@ -38,6 +39,7 @@ type Guess = [(Char, CharInfo)]
 
 data Game = Game
   { _word     :: Text              -- ^ The word to guess.
+  , _numAttempts :: Int            -- ^ The number of attempts.
   , _attempts :: [Guess]           -- ^ Previous attempts.
   , _info     :: Map Char CharInfo -- ^ Info on previous guesses.
   , _guess    :: Maybe Text        -- ^ The latest guess.
@@ -52,6 +54,7 @@ $(makeLenses ''Game)
 initGame :: IO Game
 initGame = getTarget >>= \w ->
   pure Game {_word=w
+            , _numAttempts = 0
             , _attempts=[]
             , _info    =Map.empty
             , _guess   =Nothing
@@ -62,6 +65,7 @@ initGame = getTarget >>= \w ->
 initGameWithWord :: Text -> Game
 initGameWithWord t =
   Game {_word=t
+       , _numAttempts = 0
        , _attempts=[]
        , _info    =Map.empty
        , _guess   =Nothing
@@ -73,16 +77,16 @@ backtrack :: Game -> Game
 backtrack g =
   case g ^. guess of
     Nothing -> g
-    Just _  -> let b = head $ g ^. attempts in
-      g & info %~ (\m -> foldl' (\acc ((d,s),i) ->
-                                   case s of -- move the info map back to previous state 
-                                     Black    -> Map.delete d acc
-                                     Yellow j -> if Set.size j == 1
-                                                 then Map.delete d acc
-                                                 else Map.insert d (Yellow $ Set.delete i j) acc
-                                     Green _  -> if any (\(d',s') -> d'==d && isGreen s') (concat $ tail $ g ^. attempts)
-                                                 then acc
-                                                 else Map.delete d acc) m (zip b [0..]))
+    Just _  -> let b = if null $ g ^. attempts then [] else head $ g ^. attempts in
+      endGame $ g & info %~ (\m -> foldl' (\acc ((d,s),i) ->
+                                             case s of -- move the info map back to previous state 
+                                               Black    -> Map.delete d acc
+                                               Yellow j -> if Set.size j == 1
+                                                           then Map.delete d acc
+                                                           else Map.insert d (Yellow $ Set.delete i j) acc
+                                               Green _  -> if any (\(d',s') -> d'==d && isGreen s') (concat $ tail $ g ^. attempts)
+                                                           then acc
+                                                           else Map.delete d acc) m (zip b [0..]))
       & attempts  %~ tail
       & blacklist %~ (T.pack (map fst b):)
       & guess     .~ if length (g ^. attempts) > 1
@@ -112,12 +116,13 @@ doGuess g attempt =
                                                           (Just (Green _)) -> acc
                                                           _                  -> Map.insert d s' acc) m a)
       & attempts %~ (a:)
+      & numAttempts %~ (+1)
       & guess    ?~ attempt
 
 endGame :: Game -> Game
-endGame g = let won = all (isGreen . snd) (head (g ^. attempts)) in
+endGame g = let won = not (null $ g ^. attempts) && all (isGreen . snd) (head (g ^. attempts)) in
               g & success .~ won
-                & done .~ (won || length (g ^. attempts) == 6)
+                & done .~ (won || (g ^. numAttempts) == 6)
   
 -- | Predicates for types of CharInfo.
 isGreen, isBlack :: CharInfo -> Bool
@@ -147,7 +152,7 @@ hint g = do
               
 -- | A dictionary of five letter words.
 dict :: IO [Text]
-dict = T.lines <$> TIO.readFile "etc/dict.txt"
+dict = map T.toUpper <$> T.lines <$> TIO.readFile "etc/long.txt"
 
 -- | Is a word in the dictionary?
 isDictWord :: Text -> IO Bool
@@ -155,7 +160,7 @@ isDictWord t = dict <&> elem t
   
 -- | A list of relatively common words to use as targets.
 targets :: IO [Text]
-targets = T.lines <$> TIO.readFile "etc/starting.txt"
+targets = map T.toUpper <$> T.lines <$> TIO.readFile "etc/short.txt"
 
 -- | Get a word to be the target for a game.
 getTarget :: IO Text

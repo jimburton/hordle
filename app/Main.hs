@@ -7,11 +7,14 @@ import qualified Data.Text.IO as TIO
 import           Lens.Micro ((^.))
 import           System.Console.Haskeline
 import           Control.Monad.IO.Class (liftIO)
+import           System.IO 
 
 import           Hordle (Game
                         , done
                         , attempts
+                        , numAttempts
                         , word
+                        , success
                         , initGame
                         , initGameWithWord
                         , doGuess
@@ -70,33 +73,36 @@ playGame g = runInputT defaultSettings loop
 aiGame :: IO ()
 aiGame = do
   g <- initGame
-  TIO.putStrLn (g ^. word)
-  playGameAI g 1
+  -- TIO.putStrLn (g ^. word)
+  playGameAI g 1 stdout
 
 -- | Start a game with a given word and AI solver.
-aiGameWithWord :: Text -> IO ()
-aiGameWithWord w = playGameAI (initGameWithWord w) 1
+aiGameWithWord :: Handle -> Text -> IO ()
+aiGameWithWord h w = playGameAI (initGameWithWord w) 1 h
 
 allAIWords = do
-  targets >>= mapM_ aiGameWithWord
+  h <- openFile "etc/solver.log" WriteMode 
+  targets >>= mapM_ (aiGameWithWord h)
+  hClose h
 
 -- | Allow the AI solver to take guesses until the game is over.
-playGameAI :: Game -> Int -> IO ()
-playGameAI g i = do
-  if g ^. done
-    then gameOver g
+playGameAI :: Game -> Int -> Handle -> IO ()
+playGameAI g i h = do
+  -- drawGrid g
+  if g ^. success -- done
+    then do TIO.hPutStrLn h ("WORD: "<>g ^. word<>", SUCCESS: "<>T.pack (show $ g ^. success)<>", GUESSES: "<>T.pack (show (g ^. numAttempts)))
     else do
-    h <- hint g
-    case h of
+    ht <- hint g
+    case ht of
       Nothing  -> do
         let gs = case g ^. guess of
                    Nothing  -> ""
                    (Just t) -> t
-        TIO.putStrLn $ "No hints for ["<>gs<> "]. Backtracking."
-        playGameAI (backtrack g) (i-1)
+        -- TIO.putStrLn $ "No hints for ["<>gs<> "]. Backtracking."
+        playGameAI (backtrack g) i h
       (Just t) -> do
-        TIO.putStrLn $ "Guess " <>T.pack (show i)<>": "<>t
-        playGameAI (doGuess g t) (i+1)
+        -- TIO.putStrLn $ "Guess " <>T.pack (show i)<>": "<>t
+        playGameAI (doGuess g t) (i+1) h
 
 -- | Suggest some words based on the state of the game.
 showHints :: Game -> IO ()

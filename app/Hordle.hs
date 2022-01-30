@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell, OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell, OverloadedStrings, TupleSections #-}
 module Hordle ( Game(..)
               , done
               , attempts
@@ -17,20 +17,16 @@ module Hordle ( Game(..)
 import           Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
-import           Data.List ((\\), sortBy, foldl')
-import           Data.Char (isAlpha, isAscii)
+import           Data.List (sortBy, foldl')
 import           Data.Maybe (fromJust, listToMaybe)
-import           Data.Bifunctor (first)
 import           Data.Map (Map)
 import qualified Data.Map as Map
 import           Data.Set (Set)
 import qualified Data.Set as Set
-import           Data.Map.Strict (insertWith)
 import           Lens.Micro.TH (makeLenses)
 import           Lens.Micro ((&), (.~), (%~), (^.), (?~))
 import           System.Random (getStdRandom, randomR)
 import           Data.Functor ((<&>))
-import           Debug.Trace
 
 data CharInfo = Green Int          -- ^ Char is at this index.
                 | Yellow (Set Int) -- ^ Char is in the target word but not at any of these positions.
@@ -74,10 +70,17 @@ initGameWithWord t = Game {_word=t
 backtrack :: Game -> Game
 backtrack g = case g ^. guess of
                 Nothing -> g
-                Just t  -> let b = head $ g ^. attempts in
-                  g & info %~ (\m -> foldl' (\acc (d,s) -> Map.delete d acc) m b) -- delete everything relating to this attempt. Too much!
-                  & attempts  %~ (\as -> tail as)
-                  & blacklist %~ (\bs -> T.pack (map fst b):bs)
+                Just _  -> let b = head $ g ^. attempts in
+                  g & info %~ (\m -> foldl' (\acc ((d,s),i) -> case s of -- move the info map back to previous state 
+                                                Black    -> Map.delete d acc
+                                                Yellow j -> if Set.size j == 1
+                                                            then Map.delete d acc
+                                                            else Map.insert d (Yellow $ Set.delete i j) acc
+                                                Green _  -> if any (\(d',s') -> d'==d && isGreen s') (concat $ tail $ g ^. attempts)
+                                                            then acc
+                                                            else Map.delete d acc) m (zip b [0..]))
+                  & attempts  %~ tail
+                  & blacklist %~ (T.pack (map fst b):)
                   & guess     .~ if length (g ^. attempts) > 1
                                  then Just (T.pack (map fst (head (tail $ g ^. attempts))))
                                  else Nothing
@@ -123,20 +126,19 @@ isBlack _         = False
 hints :: Game -> IO [Text]
 hints g = do
   let inf = Map.toList $ g ^. info
-      inc = map (\(c,i) -> case i of
-                             (Green j) -> (c,Left j)
-                             (Yellow s)  -> (c,Right s)) $ filter ((not . isBlack) . snd) inf
-      out = map fst $ filter (\(c,i) -> isBlack i) inf
-  findWords inc out (g ^. blacklist) <$> targets
+      gy  = map (\(c,i) -> case i of
+                             (Green j)  -> (c,Left j)
+                             (Yellow s) -> (c,Right s)) $ filter ((not . isBlack) . snd) inf
+      b   = map fst $ filter (isBlack . snd) inf
+  findWords gy b (g ^. blacklist) <$> targets
 
 -- | Get a single hint based on the constraints.
 hint :: Game -> IO (Maybe Text)
 hint g = do
   hs <- hints g
   let possibleGames = map (\t -> (t, doGuess g t)) hs
-  reds' <- mapM (\(t,g') -> do hs <- hints g'
-                               pure (t, length hs)) possibleGames
-  let res = sortBy (\(t1,l1) (t2,l2) -> l1 `compare` l2) reds'
+  reds' <- mapM (\(t,g') -> hints g' <&> (t,) . length) possibleGames
+  let res = sortBy (\(_,l1) (_,l2) -> l1 `compare` l2) reds'
   pure $ fst <$> listToMaybe res
               
 -- | A dictionary of five letter words.
@@ -163,28 +165,14 @@ findWords :: [(Char, Either Int (Set Int))] -- ^ Chars that are in the words, ei
           -> [Text]                     -- ^ A list of words that must not be in the result. 
           -> [Text]                     -- ^ A list of words to search.
           -> [Text]                     -- ^ The matching words.
-findWords inc out bl =
+findWords gy b bl =
   filter (\t ->
             t `notElem` bl
             && all (\(c,pos) ->
                       case pos of
                         (Left i)   -> T.index t i == c
-                        (Right os) -> T.elem c t && fromJust (T.findIndex (==c) t) `Set.notMember` os) inc
-            && not (any (`T.elem` t) out))
-
-{-
--- | Find a single word based on a number of constraints
-findWord :: [(Char, Either Int (Set Int))] -- ^ Chars that are in the word, either at an exact index or not in any of a list of indices.
-         -> [Char]                     -- ^ Chars that are not in the word.
-         -> [Text]                     -- ^ The list of words to search.
-         -> Maybe Text                 -- ^ The matching word, if it exists.
-findWord inc out = listToMaybe . findWords inc out 
--}
-
-freqTable :: [Text] -> [(Char, Int)]
-freqTable d = let str = T.concat d in
-  sortBy (\e1 e2 -> snd e2 `compare` snd e1) $ Map.toList $ T.foldl
-  (\acc x -> insertWith (\_ y -> y+1) x 1 acc) Map.empty str
+                        (Right os) -> T.elem c t && fromJust (T.findIndex (==c) t) `Set.notMember` os) gy
+            && not (any (`T.elem` t) b))
 
 -- | Set the status of each char in a guess.
 processAttempt :: Text       -- ^ The target word

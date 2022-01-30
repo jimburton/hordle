@@ -6,7 +6,6 @@ import           Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import           Lens.Micro ((^.))
-import           Data.Maybe (fromJust)
 import           Hordle (CharInfo(..)
                         , Game
                         , done
@@ -22,7 +21,6 @@ import           Hordle (CharInfo(..)
                         , guess )
                  
 import           UI ()
-import Control.Monad (unless, when)
 import System.Console.Haskeline
 import Control.Monad.IO.Class (liftIO)
 

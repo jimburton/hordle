@@ -9,8 +9,6 @@ module Hordle ( Game(..)
               , doGuess
               , hint
               , hints
-              , targets
-              , dict
               , isDictWord ) where
 
 import           Data.Text (Text)
@@ -29,6 +27,7 @@ import           Lens.Micro.TH (makeLenses)
 import           Lens.Micro ((&), (.~), (%~), (^.), (?~))
 import           System.Random (getStdRandom, randomR)
 import           Data.Functor ((<&>))
+import           Debug.Trace
 
 data CharInfo = Correct Int        -- ^ Char is at this index.
                 | InWord (Set Int) -- ^ Char is in the target word but not at any of these positions.
@@ -50,12 +49,13 @@ $(makeLenses ''Game)
 
 -- | Start a new game.
 initGame :: IO Game
-initGame = getTarget >>= \w -> pure Game {_word=w
-                                         , _attempts=[]
-                                         , _info    =Map.empty
-                                         , _guess   =Nothing
-                                         , _done    =False
-                                         , _success =False}
+initGame = getTarget >>= \w ->
+  pure Game {_word=w
+            , _attempts=[]
+            , _info    =Map.empty
+            , _guess   =Nothing
+            , _done    =False
+            , _success =False}
 
 -- | Enter a guessed word into the game, updating the record accordingly.
 doGuess :: Game -> Text -> Game
@@ -84,8 +84,8 @@ doGuess g attempt =
 endGame :: Game -> Game
 endGame g = let won = all (isCorrect . snd) (head (g ^. attempts)) in
               g & success .~ won
-                & done .~ (length (g ^. attempts) == 5 || won)
-
+                & done .~ (won || length (g ^. attempts) == 6)
+  
 -- | Predicates for types of CharInfo.
 isCorrect, isInWord, isIncorrect :: CharInfo -> Bool
 isCorrect (Correct _) = True
@@ -103,12 +103,17 @@ hints g = do
                              (Correct j) -> (c,Left j)
                              (InWord s)  -> (c,Right s)) $ filter ((not . isIncorrect) . snd) inf
       out = map fst $ filter (\(c,i) -> isIncorrect i) inf
-  d <- dict
-  pure $ findWords inc out d
+  findWords inc out <$> targets
 
 -- | Get a single hint based on the constraints.
-hint :: Game -> IO (Maybe Text)
-hint g = listToMaybe <$> hints g
+--hint :: Game -> IO (Maybe Text)
+hint g = do
+  hs <- hints g
+  let possibleGames = map (\t -> (t, doGuess g t)) hs
+  reds' <- mapM (\(t,g') -> do hs <- hints g'
+                               pure (t, length hs)) possibleGames
+  let res = sortBy (\(t1,l1) (t2,l2) -> l1 `compare` l2) reds'
+  pure $ fst <$> listToMaybe res 
               
 -- | A dictionary of five letter words.
 dict :: IO [Text]

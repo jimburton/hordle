@@ -14,10 +14,10 @@ import           Hordle (CharInfo(..)
                         , word
                         , initGame
                         , doGuess
-                        , targets
                         , hints
                         , hint
                         , isDictWord)
+                 
 import           UI ()
 import Control.Monad (unless, when)
 import System.Console.Haskeline
@@ -38,7 +38,9 @@ playGame g = runInputT defaultSettings loop
    loop = do
      if g ^. done
        then liftIO $ gameOver g
-       else do mLn <- getInputLine ("Enter a five letter word [Attempt " <> show (1 + length (g ^. attempts)) <> "]\n")
+       else do mLn <- getInputLine ("Enter a five letter word [Attempt "
+                                    <> show (1 + length (g ^. attempts))
+                                    <> "]\n")
                case mLn of
                  Nothing -> loop
                  Just wdStr -> do
@@ -62,10 +64,23 @@ playGame g = runInputT defaultSettings loop
                          drawGrid g'
                          playGame g'
 
+aiGame :: IO ()
+aiGame = do
+  g <- initGame
+  TIO.putStrLn (g ^. word)
+  loop g 1
+  where loop g0 i = do
+          if g0 ^. done
+            then gameOver g0
+            else do h <- hint g0
+                    case h of
+                      Nothing  -> TIO.putStrLn "No solution."
+                      (Just t) -> do TIO.putStrLn ("Guess " <> (T.pack (show i))<>": "<>t)
+                                     loop (doGuess g0 t) (i+1)
+
 -- | Suggest some words based on the state of the game.
 showHints :: Game -> IO ()
-showHints g = do hs <- hints g
-                 mapM_ TIO.putStrLn hs
+showHints g = hints g >>= mapM_ TIO.putStrLn
 
 -- | Print a message when the game is over.
 gameOver :: Game -> IO ()
@@ -86,7 +101,7 @@ drawGrid g = do
         colour (Correct _) = green
         colour Incorrect   = red
         colour (InWord _)  = yellow
-        drawLines _  5 = pure ()
+        drawLines _  6 = pure ()
         drawLines as n = do if n < length as
                               then TIO.putStrLn $ line (as!!n)
                               else TIO.putStrLn iline

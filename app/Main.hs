@@ -1,33 +1,34 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
-import           Data.List (intercalate)
 import           Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import           Lens.Micro ((^.))
-import           Hordle (CharInfo(..)
-                        , Game
+import           System.Console.Haskeline
+import           Control.Monad.IO.Class (liftIO)
+
+import           Hordle (Game
                         , done
                         , attempts
-                        , success
                         , word
                         , initGame
+                        , initGameWithWord
                         , doGuess
                         , hints
                         , hint
                         , isDictWord
                         , backtrack
-                        , guess )
-                 
-import           UI ()
-import System.Console.Haskeline
-import Control.Monad.IO.Class (liftIO)
+                        , guess
+                        , targets )
+import           UI (drawGrid
+                    , gameOver
+                    , helpText)
 
 main :: IO ()
 main = do TIO.putStrLn helpText
           g <- initGame
-          TIO.putStrLn (g ^. word)
+          -- TIO.putStrLn (g ^. word)
           playGame g
 
 -- | Play the game by querying the user for words until they guess the word or have
@@ -48,7 +49,7 @@ playGame g = runInputT defaultSettings loop
                    let attempt = T.toUpper $ T.pack wdStr
                    if attempt == ":HINT"
                      then liftIO $ do
-                       showHints g
+                       showHint g
                        playGame g
                      else if T.length attempt /= 5
                           then liftIO $ do
@@ -65,61 +66,42 @@ playGame g = runInputT defaultSettings loop
                          drawGrid g'
                          playGame g'
 
+-- | STart a game with a random target and AI solver.
 aiGame :: IO ()
 aiGame = do
   g <- initGame
   TIO.putStrLn (g ^. word)
-  loop g 1
-  where loop :: Game -> Int -> IO ()
-        loop g0 i = do
-          if g0 ^. done
-            then gameOver g0
-            else do h <- hint g0
-                    case h of
-                      Nothing  -> do let gs = case g0 ^. guess of
-                                           Nothing  -> ""
-                                           (Just t) -> t
-                                     TIO.putStrLn $ "No hints for ["<>gs<> "]. Backtracking."
-                                     loop (backtrack g0) i
-                      (Just t) -> do TIO.putStrLn $ "Guess " <>T.pack (show i)<>": "<>t
-                                     loop (doGuess g0 t) (i+1)
+  playGameAI g 1
+
+-- | Start a game with a given word and AI solver.
+aiGameWithWord :: Text -> IO ()
+aiGameWithWord w = playGameAI (initGameWithWord w) 1
+
+allAIWords = do
+  targets >>= mapM_ aiGameWithWord
+
+-- | Allow the AI solver to take guesses until the game is over.
+playGameAI :: Game -> Int -> IO ()
+playGameAI g i = do
+  if g ^. done
+    then gameOver g
+    else do
+    h <- hint g
+    case h of
+      Nothing  -> do
+        let gs = case g ^. guess of
+                   Nothing  -> ""
+                   (Just t) -> t
+        TIO.putStrLn $ "No hints for ["<>gs<> "]. Backtracking."
+        playGameAI (backtrack g) (i-1)
+      (Just t) -> do
+        TIO.putStrLn $ "Guess " <>T.pack (show i)<>": "<>t
+        playGameAI (doGuess g t) (i+1)
 
 -- | Suggest some words based on the state of the game.
 showHints :: Game -> IO ()
 showHints g = hints g >>= mapM_ TIO.putStrLn
 
--- | Print a message when the game is over.
-gameOver :: Game -> IO ()
-gameOver g = if g ^. success
-             then TIO.putStrLn "Well done!"
-             else TIO.putStrLn $ "Hard luck! The word was " <> (g ^. word)
-
--- | Draw the game grid.
-drawGrid :: Game -> IO ()
-drawGrid g = do
-  let as = reverse $ g ^. attempts
-  TIO.putStrLn hline
-  drawLines as 0
-  where hline  = "+-------------------+"
-        iline  = "|   |   |   |   |   |"
-        line a = T.pack $ "|" <> intercalate "|"
-          (map (\(c,i) -> " "<>colour i<>[c]<>def<>" ") a) <> "|"
-        colour (Green _)  = green
-        colour Black      = red
-        colour (Yellow _) = yellow
-        drawLines _  6 = pure ()
-        drawLines as n = do if n < length as
-                              then TIO.putStrLn $ line (as!!n)
-                              else TIO.putStrLn iline
-                            TIO.putStrLn hline 
-                            drawLines as (n+1)
-        red    = "\ESC[31m"
-        green  = "\ESC[32m"
-        yellow = "\ESC[33m"
-        def    = "\ESC[0m"
-
--- | Explain the colours to the user.
-helpText :: Text
-helpText = "\ESC[32mchar in right place.\ESC[0m\n"
-           <> "\ESC[33mchar in word but wrong place.\ESC[0m\n"
-           <> "\ESC[31mchar not in word.\ESC[0m"
+-- | Suggest a single word based on the state of the game.
+showHint :: Game -> IO ()
+showHint g = hint g >>= mapM_ TIO.putStrLn

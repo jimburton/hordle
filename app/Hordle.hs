@@ -12,7 +12,8 @@ module Hordle ( Game(..)
               , hint
               , hints
               , isDictWord
-              , backtrack ) where
+              , backtrack
+              , targets ) where
 
 import           Data.Text (Text)
 import qualified Data.Text as T
@@ -59,31 +60,34 @@ initGame = getTarget >>= \w ->
             , _blacklist =[]}
 
 initGameWithWord :: Text -> Game
-initGameWithWord t = Game {_word=t
-                          , _attempts=[]
-                          , _info    =Map.empty
-                          , _guess   =Nothing
-                          , _done    =False
-                          , _success =False
-                          , _blacklist =[]}
+initGameWithWord t =
+  Game {_word=t
+       , _attempts=[]
+       , _info    =Map.empty
+       , _guess   =Nothing
+       , _done    =False
+       , _success =False
+       , _blacklist =[]}
 
 backtrack :: Game -> Game
-backtrack g = case g ^. guess of
-                Nothing -> g
-                Just _  -> let b = head $ g ^. attempts in
-                  g & info %~ (\m -> foldl' (\acc ((d,s),i) -> case s of -- move the info map back to previous state 
-                                                Black    -> Map.delete d acc
-                                                Yellow j -> if Set.size j == 1
-                                                            then Map.delete d acc
-                                                            else Map.insert d (Yellow $ Set.delete i j) acc
-                                                Green _  -> if any (\(d',s') -> d'==d && isGreen s') (concat $ tail $ g ^. attempts)
-                                                            then acc
-                                                            else Map.delete d acc) m (zip b [0..]))
-                  & attempts  %~ tail
-                  & blacklist %~ (T.pack (map fst b):)
-                  & guess     .~ if length (g ^. attempts) > 1
-                                 then Just (T.pack (map fst (head (tail $ g ^. attempts))))
-                                 else Nothing
+backtrack g =
+  case g ^. guess of
+    Nothing -> g
+    Just _  -> let b = head $ g ^. attempts in
+      g & info %~ (\m -> foldl' (\acc ((d,s),i) ->
+                                   case s of -- move the info map back to previous state 
+                                     Black    -> Map.delete d acc
+                                     Yellow j -> if Set.size j == 1
+                                                 then Map.delete d acc
+                                                 else Map.insert d (Yellow $ Set.delete i j) acc
+                                     Green _  -> if any (\(d',s') -> d'==d && isGreen s') (concat $ tail $ g ^. attempts)
+                                                 then acc
+                                                 else Map.delete d acc) m (zip b [0..]))
+      & attempts  %~ tail
+      & blacklist %~ (T.pack (map fst b):)
+      & guess     .~ if length (g ^. attempts) > 1
+                     then Just (T.pack (map fst (head (tail $ g ^. attempts))))
+                     else Nothing
                     
   
 -- | Enter a guessed word into the game, updating the record accordingly.

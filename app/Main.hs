@@ -6,6 +6,7 @@ import           Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import           Lens.Micro ((^.))
+import           Data.Maybe (fromJust)
 import           Hordle (CharInfo(..)
                         , Game
                         , done
@@ -16,7 +17,9 @@ import           Hordle (CharInfo(..)
                         , doGuess
                         , hints
                         , hint
-                        , isDictWord)
+                        , isDictWord
+                        , backtrack
+                        , guess )
                  
 import           UI ()
 import Control.Monad (unless, when)
@@ -69,13 +72,18 @@ aiGame = do
   g <- initGame
   TIO.putStrLn (g ^. word)
   loop g 1
-  where loop g0 i = do
+  where loop :: Game -> Int -> IO ()
+        loop g0 i = do
           if g0 ^. done
             then gameOver g0
             else do h <- hint g0
                     case h of
-                      Nothing  -> TIO.putStrLn "No solution."
-                      (Just t) -> do TIO.putStrLn ("Guess " <> (T.pack (show i))<>": "<>t)
+                      Nothing  -> do let gs = case g0 ^. guess of
+                                           Nothing  -> ""
+                                           (Just t) -> t
+                                     TIO.putStrLn $ "No hints for ["<>gs<> "]. Backtracking."
+                                     loop (backtrack g0) i
+                      (Just t) -> do TIO.putStrLn $ "Guess " <>T.pack (show i)<>": "<>t
                                      loop (doGuess g0 t) (i+1)
 
 -- | Suggest some words based on the state of the game.
@@ -98,9 +106,9 @@ drawGrid g = do
         iline  = "|   |   |   |   |   |"
         line a = T.pack $ "|" <> intercalate "|"
           (map (\(c,i) -> " "<>colour i<>[c]<>def<>" ") a) <> "|"
-        colour (Correct _) = green
-        colour Incorrect   = red
-        colour (InWord _)  = yellow
+        colour (Green _)  = green
+        colour Black      = red
+        colour (Yellow _) = yellow
         drawLines _  6 = pure ()
         drawLines as n = do if n < length as
                               then TIO.putStrLn $ line (as!!n)

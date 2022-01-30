@@ -1,20 +1,21 @@
 {-# LANGUAGE TemplateHaskell, OverloadedStrings, TupleSections #-}
-module Hordle ( Game(..)
-              , done
-              , attempts
-              , numAttempts
-              , success
-              , word
-              , guess
-              , CharInfo(..)
-              , initGame
-              , initGameWithWord
-              , doGuess
-              , hint
-              , hints
-              , isDictWord
-              , backtrack
-              , targets ) where
+module Hordle.Hordle (
+  Game(..)
+  , done
+  , attempts
+  , numAttempts
+  , success
+  , word
+  , guess
+  , CharInfo(..)
+  , initGame
+  , initGameWithWord
+  , doGuess
+  , hint
+  , hints
+  , isDictWord
+  , backtrack
+  , targets ) where
 
 import           Data.Text (Text)
 import qualified Data.Text as T
@@ -62,6 +63,7 @@ initGame = getTarget >>= \w ->
             , _success =False
             , _blacklist =[]}
 
+-- | Start a new game with a given target word.
 initGameWithWord :: Text -> Game
 initGameWithWord t =
   Game {_word=t
@@ -73,6 +75,7 @@ initGameWithWord t =
        , _success =False
        , _blacklist =[]}
 
+-- | Take a step backward in the game. Used by the solver.
 backtrack :: Game -> Game
 backtrack g =
   case g ^. guess of
@@ -119,6 +122,7 @@ doGuess g attempt =
       & numAttempts %~ (+1)
       & guess    ?~ attempt
 
+-- | Set the booleans that determine whether the game is over.
 endGame :: Game -> Game
 endGame g = let won = not (null $ g ^. attempts) && all (isGreen . snd) (head (g ^. attempts)) in
               g & success .~ won
@@ -152,7 +156,7 @@ hint g = do
               
 -- | A dictionary of five letter words.
 dict :: IO [Text]
-dict = map T.toUpper <$> T.lines <$> TIO.readFile "etc/long.txt"
+dict = map T.toUpper . T.lines <$> TIO.readFile "etc/long.txt"
 
 -- | Is a word in the dictionary?
 isDictWord :: Text -> IO Bool
@@ -160,7 +164,7 @@ isDictWord t = dict <&> elem t
   
 -- | A list of relatively common words to use as targets.
 targets :: IO [Text]
-targets = map T.toUpper <$> T.lines <$> TIO.readFile "etc/short.txt"
+targets = map T.toUpper . T.lines <$> TIO.readFile "etc/short.txt"
 
 -- | Get a word to be the target for a game.
 getTarget :: IO Text
@@ -168,7 +172,7 @@ getTarget = do
   flw <- targets
   (flw !!) <$> getStdRandom (randomR (0, length flw))
 
--- | Find words based on a number of constraints
+-- | Find words based on a number of constraints.
 findWords :: [(Char, Either Int (Set Int))] -- ^ Chars that are in the words, either at an exact index or not in any of a list of indices.
           -> [Char]                     -- ^ Chars that are not in the words.
           -> [Text]                     -- ^ A list of words that must not be in the result. 
@@ -189,7 +193,7 @@ processAttempt :: Text       -- ^ The target word
        -> [(Char, CharInfo)] -- ^ A pair of chars and their status in the guess.
 processAttempt target attempt =
   let w' = T.unpack target
-      iw = inc target attempt in
+      iw = yellows target attempt in
     map (\(c, (d,i)) -> if c==d
                         then (d, Green i)
                         else if d `notElem` w'
@@ -203,10 +207,10 @@ maybeInc ((c, Yellow si):iw) (d,i) = if c==d && Set.member i si
                                      else maybeInc iw (d,i)
 maybeInc (_:iw) di                 = maybeInc iw di
 
-inc :: Text -- ^ The target word
-    -> [(Char, Int)] -- ^ The attempt
-    -> [(Char, CharInfo)] -- ^ A list of pairs of (chars in word but not in right position, their indices)
-inc target attempt = inc' target attempt []
+yellows :: Text               -- ^ The target word
+        -> [(Char, Int)]      -- ^ The attempt
+        -> [(Char, CharInfo)] -- ^ A list of pairs of (chars in word but not in right position, their indices)
+yellows target attempt = inc' target attempt []
   where inc' :: Text -> [(Char, Int)] -> [(Char, CharInfo)] -> [(Char, CharInfo)]
         inc' _ [] res = res
         inc' t a res  =

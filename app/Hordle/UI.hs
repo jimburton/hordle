@@ -1,7 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
-module UI (gameOver
-          , drawGrid
-          , helpText)
+module Hordle.UI
+  (gameOver
+  , drawGrid
+  , helpText)
   where
 
 import           Data.Text (Text)
@@ -9,11 +10,13 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import           Data.List (intercalate)
 import           Lens.Micro ((^.))
-import           Hordle (CharInfo(..)
-                        , Game
-                        , word
-                        , attempts
-                        , success)
+
+import           Hordle.Hordle
+  (CharInfo(..)
+  , Game
+  , word
+  , attempts
+  , success)
 
 -- | Print a message when the game is over.
 gameOver :: Game -> IO ()
@@ -44,7 +47,6 @@ drawGrid g = do
         green  = "\ESC[32m"
         yellow = "\ESC[33m"
         def    = "\ESC[0m"
-        black  = "\ESC[30m"
 
 -- | Explain the colours to the user.
 helpText :: Text

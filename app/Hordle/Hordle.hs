@@ -159,6 +159,7 @@ findWords gy b bl =
                         (Right os) -> T.elem c t && fromJust (T.findIndex (==c) t) `Set.notMember` os) gy
             && not (any (`T.elem` t) b))
 
+-- | Update the info map with new constraints.
 updateMapWithAttempt :: Guess -> Map Char CharInfo -> Map Char CharInfo
 updateMapWithAttempt a m =
   foldl' (\acc (d,s) ->
@@ -204,7 +205,7 @@ backtrack g =
                    b' = if length (g ^. attempts) > 1
                         then Just (T.pack (map fst (head (tail $ g ^. attempts))))
                         else Nothing in
-      trace ("Backtracked from "++show b++" to "++show b') $ endGame $ g & info %~ (\m -> foldl'
+      endGame $ g & info %~ (\m -> foldl'
                               (\acc ((d,s),i) ->
                                   case s of -- move the info map back to previous state 
                                     Black    -> Map.delete d acc

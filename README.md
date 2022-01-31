@@ -10,12 +10,11 @@ purpose is to demonstrate functional problem solving, including the
 use of algebraic datatypes, higher-order functions like `foldl'`, and
 the use of standard data structures like maps and sets.
 
-The solver is simple, It is (currently) so simple that it can't solve
-all Wordle problems in six guesses, which is the maximum allowed,
-although it solves most in two or three. It uses a greedy backtracking
-algorithm to pick the next guess, choosing one that will minimise the
-subsequent possibilities but retracing its steps when that turned out
-to be a bad choice.
+The solver is simple but it can guess all standard Wordle words in
+well under six guesses, which is the maximum allowed. It uses a greedy
+backtracking algorithm to pick the next guess, choosing one that will
+minimise the subsequent possibilities but retracing its steps when
+that turned out to be a bad choice.
 
 ## Wordle
 
@@ -58,7 +57,7 @@ import qualified Data.Text as T
 import           Data.Set (Set)
 import qualified Data.Set as S
 
-data CharInfo = Green Int          -- ^ Char is at this index.
+data CharInfo = Green (Set Int)    -- ^ Char is definitely at these indices.
                 | Yellow (Set Int) -- ^ Char is in the target word but not at any of these positions.
                 | Black            -- ^ Char is not in the target word.
                 deriving (Show, Eq)
@@ -74,7 +73,7 @@ can keep track of the index of characters.
 score :: Text -> Text -> Guess
 score guess target = 
   map (\((c,d),i) -> if c==d 
-                     then (c, Green i)
+                     then (c, Green (Set.singleton i))
 					 else if T.elem c target
 						  then (c, Yellow (S.singleton i))
 						  else (c, Black)) $ zip (T.zip guess target) [0..]
@@ -87,9 +86,9 @@ ghci> score "HOLLY" "LILTS"
 [('H',Black),('O',Black),('L',Green 2),('L',Yellow (fromList [3])),('Y',Black)]
 ```
 
-Now we need to make code that creates a game with a taget word. We create a 
-record that will store all the necessary information and can be updated throughout
-the game. We will use lenses with the record to make it easy to update its fields.
+Now we need a record that will store all the necessary information for
+a game and can be updated throughout it. We will use lenses with
+the record to make it easy to update its fields.
 
 ```haskell
 import           Lens.Micro.TH (makeLenses)
@@ -118,17 +117,18 @@ Now if we have a `Game` value, `g`, we can get the value of a field with `(^.)`,
 The `_info` field is a
 [map](https://hackage.haskell.org/package/containers-0.4.0.0/docs/Data-Map.html)
 from `Char`s to `CharInfo` values. The map will be updated after each
-guess. It is used when the human player asks for a hint or the solver
-picks its next guess. So the map needs to be carried throughout the
-game. The function that handles a new guess will need to take a
-`Game` and produce a new one with an updated `_info` map.
+guess. It is used when the human player asks for a hint, or the
+automated solver picks its next guess. The function that handles a new
+guess will need to take a `Game` and produce a new one with an updated
+`_info` map.
 
 ## Creating games
 
 The game needs to use a dictionary to find random target words and to check that
 every attempt is a real word. In fact, the game uses two disctionaries: a relatively
-short one for target words, and a more complete one for checking entries against.
-Creating a game with a random target word requires IO.
+short one for target words, and a more complete one for checking guesses against.
+Creating a game with a random target word requires IO. We also want to be able to 
+create games based on predetermined words.
 
 ```haskell
 -- | A dictionary of five letter words.
@@ -195,29 +195,39 @@ endGame g = let won = not (null $ g ^. attempts) && all (isGreen . snd) (head (g
 
 The `updateMapWithAttempt` function called in `doGuess` takes a
 `Guess` and the old map then updates it. It does this using a fold. If
-a character has been scored as green or black, we just insert it -- if
-it was already there this will overwrite the previous value, but that
-will have no effect. If a character was scored as yellow, it could be
-that it has previously been scored as green, so we need to check
-that. If it was previously green we keep it that way. Otherwise, we
-add to the set of positions this character is not at. The `insertWith`
-function uses its first argument to update an existing value. Its
-second argument is the key. Its third argument is used as the value if
-the key does not exist in the map.
+a character has been scored as black, we just insert it -- if it was
+already there this will overwrite the previous value, but that will
+have no effect. If a character was scored as yellow, it could be that
+it has previously been scored as green, so we need to check that. If
+it was previously green we keep it that way. Otherwise, we add to the
+set of positions this character is not at. The opposite is true of
+adding characters scored as green -- if they were previously yellow,
+we overwrite the old value, otherwise we update the set of location.
+The `insertWith` function uses its first argument to update an
+existing value. Its second argument is the key. Its third argument is
+used as the value if the key does not exist in the map.
 
 ```haskell
+-- | Update the info map with new constraints.
 updateMapWithAttempt :: Guess -> Map Char CharInfo -> Map Char CharInfo
 updateMapWithAttempt a m =
   foldl' (\acc (d,s) ->
              case s of
-               (Yellow si) -> Map.insertWith
+               (Yellow os) -> Map.insertWith
                               (\(Yellow new) old ->
                                   case old of
                                     -- update the set of indices in which this char occurs
                                     (Yellow o) -> Yellow (Set.union o new)
-                                    -- was previously Correct, keep it that way and ignore the new info.
-                                    o'         -> o') d (Yellow si) acc
-               -- chars which are correct and incorrect
+                                    -- was previously Green, keep it that way and ignore the new info.
+                                    o'         -> o') d (Yellow os) acc
+               (Green is) -> Map.insertWith
+                              (\(Green new) old ->
+                                  case old of
+                                    -- update the set of indices in which this char occurs
+                                    (Green o) -> Green (Set.union o new)
+                                    -- was previously Yellow, overwrite.
+                                    _         -> Green new) d (Green is) acc
+               -- chars which are incorrect
                s'          -> Map.insert d s' acc) m a
 ```
 
@@ -266,14 +276,15 @@ gameOver g = if g ^. success
 
 ## Hints
 
-So far we have created a simple word-guessing game. The first step
-towards creating a solver for it is to find all words that can match a
-given set of constraints. If we have a list of words we can filter it
+So far we have created a simple word-guessing game. The more
+interesting task is writing an automated solver for the game. The
+first step towards that is to find all words that can match a given
+set of constraints. If we have a list of words we can filter it
 against the constraint provided by a pair of a `Char` and a `CharInfo`
 value.
 
 ```haskell
-findWords :: (Char, CharInfo) -> [Text] -> [Text]
+findWords :: Guess -> [Text] -> [Text]
 findWords (c,ci) ts = let f = case ci of
                                 (Green i)  -> \t -> T.index t i == c
 								(Yellow i) -> \t -> T.elem c t && fromJust (T.findIndex (==c) t) `S.notMember` i
@@ -285,7 +296,7 @@ If we have a list of constraints we can apply them all to each word by mapping
 `f` onto the list of constraints and using `all` to apply them all to each word.
 
 ```haskell
-findWords :: (Char, CharInfo) -> [Text] -> [Text]
+findWords :: [Guess] -> [Text] -> [Text]
 findWords cs ts = let f  = case ci of
                             (Green i)  -> \t -> T.index t i == c
 							(Yellow i) -> \t -> T.elem c t && fromJust (T.findIndex (==c) t) `S.notMember` i
@@ -296,14 +307,15 @@ findWords cs ts = let f  = case ci of
 
 At the beginning of the game when there are no constraints, the hints
 will include the entire dictionary. As soon as we start accumulating
-information that list will be rapidly narrowed down.
+information that list will be rapidly narrowed down. Each time we make
+a guess the feedback we get adds more constraints, narrowing down the
+next set of candidate words.
 
-Each time we make a guess we add more constraints, narrowing down the
-next set of candidate words. Our strategy to pick a word from the
-available candidates such that the subsequent list of candidates will
-be as small as possible. So we take all candidates for a given state, 
-apply them as the next guess then look at each list of resulting possible
-candidates. We take a word with the shortest list.
+Our strategy to pick a word from the available candidates such that
+the *subsequent* list of candidates will be as small as possible. So
+we look at all words that match the given constraints, apply each of
+them as the next guess then look at each list of resulting possible
+candidates. We then take one of the words with the shortest list.
 
 ```haskell
 -- | Get a single hint based on the constraints.
@@ -316,7 +328,70 @@ hint g = do
   pure $ fst <$> listToMaybe res
 ```
 
-However, some words will prove to be a dead end, and we will need to
-retrace our steps if that happens.
+This is a *greedy* algorithm, because it picks a candidate word that
+looks like it may be a good one given the current information, but it
+could make the wrong choice. Some words will prove to be a dead end,
+and we will need to retrace our steps if that happens. This takes
+place in thefunction that plays an automated game, `solveTurn`.
 
-We can make big improvements here by applying heuristics.
+```haskell
+-- | Start a game with a random target and a solver.
+solve :: IO ()
+solve = do
+  g <- initGame
+  solveTurn g 1 stdout
+
+-- | Allow the AI solver to take guesses until the game is over.
+solveTurn :: Game -> Int -> Handle -> IO ()
+solveTurn g i h = do
+  -- drawGrid g
+  if g ^. done
+    then do let t = "WORD: "<>g ^. word<>", SUCCESS: "<>T.pack (show $ g ^. success)<>", GUESSES: "<>T.pack (show (g ^. numAttempts))
+            TIO.hPutStrLn h t
+            hFlush h
+    else do
+    ht <- hint g
+    case ht of
+      Nothing  -> do
+        solveTurn (backtrack g) i h
+      (Just t) -> do
+        solveTurn (doGuess g t) (i+1) h
+```
+
+Note that after requesting a hint, we check whether it is `Nothing`.
+If that is the case, the last guess was a dead end and we need to
+backtrack and try a different word.  The `backtrack` function just
+undoes the changes to the `Game` record made by the previous guess.
+We have added a new field to `Game`, containing a blacklist of deadend
+words.
+
+```haskell
+-- | Take a step backward in the game. Used by the solver.
+backtrack :: Game -> Game
+backtrack g =
+  case g ^. guess of
+    Nothing -> g
+    Just _  -> let b  = if null $ g ^. attempts then [] else head $ g ^. attempts
+                   b' = if length (g ^. attempts) > 1
+                        then Just (T.pack (map fst (head (tail $ g ^. attempts))))
+                        else Nothing in
+      endGame $ g & info %~ (\m -> foldl'
+                              (\acc ((d,s),i) ->
+                                  case s of -- move the info map back to previous state 
+                                    Black    -> Map.delete d acc
+                                    Yellow j -> if Set.size j == 1
+                                                then Map.delete d acc
+                                                else Map.insert d (Yellow $ Set.delete i j) acc
+                                    Green _  -> if any (\(d',s') -> d'==d && isGreen s') (concat $ tail $ g ^. attempts)
+                                                then acc
+                                                else Map.delete d acc) m (zip b [0..]))
+      & attempts  %~ tail
+      & blacklist %~ (T.pack (map fst b):)
+      & guess     .~ if length (g ^. attempts) > 1
+                     then Just (T.pack (map fst (head (tail $ g ^. attempts))))
+                     else Nothing
+```
+
+This simple backtracking greedy algorithm isn't fast, but it can guess
+any word in the 2300 list of Wordle words in less than 3 guesses on
+average.

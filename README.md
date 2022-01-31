@@ -115,6 +115,14 @@ Now if we have a `Game` value, `g`, we can get the value of a field with `(^.)`,
 `g & word %~ T.toUpper`. The `(?~)` operator sets a value in a field that contains a
 `Maybe`.
 
+The `_info` field is a
+[map](https://hackage.haskell.org/package/containers-0.4.0.0/docs/Data-Map.html)
+from `Char`s to `CharInfo` values. The map will be updated after each
+guess. It is used when the human player asks for a hint or the solver
+picks its next guess. So the map needs to be carried throughout the
+game. The function that handles a new guess will need to take a
+`Game` and produce a new one with an updated `_info` map.
+
 ## Creating games
 
 The game needs to use a dictionary to find random target words and to check that
@@ -258,9 +266,11 @@ gameOver g = if g ^. success
 
 ## Hints
 
-
-If we have a list of words we can filter it against the constraint
-provided by a pair of a `Char` and a `CharInfo` value.
+So far we have created a simple word-guessing game. The first step
+towards creating a solver for it is to find all words that can match a
+given set of constraints. If we have a list of words we can filter it
+against the constraint provided by a pair of a `Char` and a `CharInfo`
+value.
 
 ```haskell
 findWords :: (Char, CharInfo) -> [Text] -> [Text]
@@ -284,47 +294,29 @@ findWords cs ts = let f  = case ci of
 	filter (all fs) ts
 ```
 
-We will create a
-[map](https://hackage.haskell.org/package/containers-0.4.0.0/docs/Data-Map.html)
-from `Char`s to `CharInfo` values. The map will be updated after each
-guess, and it is used when the human player asks for a hint or the
-solver picks its next guess. So the map needs to be carried throughout
-the game. We create a record to hold all the information needed to
-play a game. The nice way to work with records is by using [lenses]()
-to access and update the fields. So, we name the fields with an
-underscore prefix and add the magic incantation beneath the
-declaration:
+At the beginning of the game when there are no constraints, the hints
+will include the entire dictionary. As soon as we start accumulating
+information that list will be rapidly narrowed down.
+
+Each time we make a guess we add more constraints, narrowing down the
+next set of candidate words. Our strategy to pick a word from the
+available candidates such that the subsequent list of candidates will
+be as small as possible. So we take all candidates for a given state, 
+apply them as the next guess then look at each list of resulting possible
+candidates. We take a word with the shortest list.
 
 ```haskell
--- in Hordle.Game
-import Lens.Micro.TH (makeLenses)
-import Lens.Micro ((.~), (%~), (^.))
-
-data Game = Game
-  { _word     :: Text              -- ^ The word to guess.
-  , _info     :: Map Char CharInfo -- ^ Info on previous guesses.
-  } deriving (Show)
-
-$makeLenses(''Game)
+-- | Get a single hint based on the constraints.
+hint :: Game -> IO (Maybe Text)
+hint g = do
+  hs <- hints g
+  let possibleGames = map (\t -> (t, doGuess g t)) hs
+  reds' <- mapM (\(t,g') -> hints g' <&> (t,) . length) possibleGames
+  let res = sortBy (\(_,l1) (_,l2) -> l1 `compare` l2) reds'
+  pure $ fst <$> listToMaybe res
 ```
 
-This means that there are now composable getters and setters for
-`Game`. After creating a game, `g`, we can get one its fields with
-the`(^.)` operator. For instance, 
+However, some words will prove to be a dead end, and we will need to
+retrace our steps if that happens.
 
-The function that handles a new guess will need to take a
-`Game` and produce a new one with an updated `_info` map.
-
-We can see that once a character is known to be definitely not in the
-target word (black), or definitely in it at a certain index that we
-have guessed correctly (green), this information will never
-change. When a character is marked as `Yellow` however, the positions
-at which it does not appear may need to be added to. We could have
-used a plain old list for te positions, but there's no point in having
-duplicate entries in it so the right way to store the collection of
-indices at which this character doesn't appear is as a Set. Characters
-which are known to be `Yellow`, appearing somewhere but we're not sure
-where, will also change to `Green` when we get more information.
-
-The solver builds up the map of information about each character that
-has appeared in a guess.
+We can make big improvements here by applying heuristics.

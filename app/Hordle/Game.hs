@@ -15,7 +15,8 @@ module Hordle.Game (playGame
                    , allAIWords
                    , playGameAI
                    , showHints
-                   , showHint) where
+                   , showHint
+                   , problemAIWords) where
 
 import           Lens.Micro ((^.))
 import           Control.Monad.IO.Class (liftIO)
@@ -86,6 +87,7 @@ aiGame :: IO ()
 aiGame = do
   g <- initGame
   -- TIO.putStrLn (g ^. word)
+  -- ts <- targets
   playGameAI g 1 stdout
 
 -- | Start a game with a given word and a solver.
@@ -99,13 +101,18 @@ allAIWords = do
   targets >>= mapM_ (aiGameWithWord h)
   hClose h
 
+-- | Run the solver against all words.
+problemAIWords :: IO ()
+problemAIWords = do
+  T.lines <$> TIO.readFile "etc/fail.log" >>=
+    mapM_ (aiGameWithWord stdout) 
+
 -- | Allow the AI solver to take guesses until the game is over.
 playGameAI :: Game -> Int -> Handle -> IO ()
 playGameAI g i h = do
   -- drawGrid g
-  if g ^. done -- success -- done
+  if g ^. done
     then do let t = "WORD: "<>g ^. word<>", SUCCESS: "<>T.pack (show $ g ^. success)<>", GUESSES: "<>T.pack (show (g ^. numAttempts))
-            TIO.putStrLn t
             TIO.hPutStrLn h t
             hFlush h
     else do

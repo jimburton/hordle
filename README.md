@@ -24,4 +24,20 @@ is highlighted to indicate whether it is:
 + in the target word at a different position, or
 + not in the target word.
 
+This information is used to refine the guesses. The first thing we
+need is a way of representing this information that can be used to
+filer a list of words. We create a datatype `CharInfo`, whose
+constructors are named after the colours used in Wordle:
 
+```haskell
+data CharInfo = Green Int          -- ^ Char is at this index.
+                | Yellow (Set Int) -- ^ Char is in the target word but not at any of these positions.
+                | Black            -- ^ Char is not in the target word.
+                deriving (Show, Eq)
+```
+
+We will then create a map from `Char`s to `CharInfo` values. This map will
+be updated after each guess.
+
+The solver builds up a
+map of information about each character that has appeared in a guess

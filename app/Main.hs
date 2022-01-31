@@ -1,3 +1,12 @@
+{-|
+Module      : Main (for the Hordle app)
+Description : Entry point for Hordle.
+Maintainer  : j.burton@brighton.ac.uk
+Stability   : experimental
+Portability : POSIX
+
+Entry point for Hordle.
+-}
 module Main where
 
 import qualified Data.Text.IO as TIO

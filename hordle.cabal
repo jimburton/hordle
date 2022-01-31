@@ -49,8 +49,15 @@ test-suite test-hordle
     main-is:    Main.hs
     other-modules: Hordle.Hordle
                  , Hordle.Game
-    hs-source-dirs: test, src
-    build-depends: base
+                 , Hordle.UI
+    hs-source-dirs: test, app
+    build-depends: base ^>=4.15.0.0
+                 , text ^>=1.2.5.0
+                 , random
+                 , containers
+                 , microlens
+                 , microlens-th
+                 , haskeline
                  , QuickCheck
                  , test-framework
                  , test-framework-quickcheck2

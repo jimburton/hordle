@@ -1,7 +1,17 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-|
+Module      : Hordle.Game
+Description : Functions for playing a game of Hordle.
+Maintainer  : j.burton@brighton.ac.uk
+Stability   : experimental
+Portability : POSIX
+
+Functions for playing a game of Hordle.
+-}
 module Hordle.Game (playGame
                    , aiGame
                    , aiGameWithWord
+                   , feedbackGame
                    , allAIWords
                    , playGameAI
                    , showHints
@@ -24,13 +34,17 @@ import           Hordle.Hordle
   , success
   , initGame
   , initGameWithWord
+  , emptyGame
   , doGuess
   , hints
   , hint
   , isDictWord
   , backtrack
-  , targets )
+  , targets
+  , processInfo )
 import           Hordle.UI (drawGrid, gameOver)
+
+-- * Playing the game.
 
 -- | Play the game by querying the user for words until they guess the word or have
 -- | used their five guesses.
@@ -89,8 +103,11 @@ allAIWords = do
 playGameAI :: Game -> Int -> Handle -> IO ()
 playGameAI g i h = do
   -- drawGrid g
-  if g ^. success -- done
-    then do TIO.hPutStrLn h ("WORD: "<>g ^. word<>", SUCCESS: "<>T.pack (show $ g ^. success)<>", GUESSES: "<>T.pack (show (g ^. numAttempts)))
+  if g ^. done -- success -- done
+    then do let t = "WORD: "<>g ^. word<>", SUCCESS: "<>T.pack (show $ g ^. success)<>", GUESSES: "<>T.pack (show (g ^. numAttempts))
+            TIO.putStrLn t
+            TIO.hPutStrLn h t
+            hFlush h
     else do
     ht <- hint g
     case ht of
@@ -98,6 +115,42 @@ playGameAI g i h = do
         playGameAI (backtrack g) i h
       (Just t) -> do
         playGameAI (doGuess g t) (i+1) h
+
+-- | Play a game while entering the scores manually.
+feedbackGame :: IO ()
+feedbackGame = playFeedbackGame emptyGame
+
+-- | Take moves and their feedback scores until the game is done.
+playFeedbackGame :: Game -> IO ()
+playFeedbackGame g = runInputT defaultSettings loop
+ where
+   loop :: InputT IO ()
+   loop = do
+     if g ^. done
+       then liftIO $ gameOver g
+       else do mLn <- getInputLine "Enter a five letter word and its {G,Y,B} score\n"
+               case mLn of
+                 Nothing -> loop
+                 Just wdStr -> do
+                   let ws = T.words $ T.toUpper $ T.pack wdStr
+                   if length ws == 2
+                     then liftIO $ do
+                     let guess = head ws
+                         score = ws !! 1
+                         g'    = processInfo guess score g
+                     if score == "GGGGG"
+                       then TIO.putStrLn $ "Done in "<>T.pack (show $ g' ^. numAttempts)<>" attempts."
+                       else do
+                       h <- hint g'
+                       case h of
+                         Nothing  -> TIO.putStrLn "No suggestions, sorry."
+                         (Just t) -> do TIO.putStrLn ("Try "<>t)
+                                        playFeedbackGame g'
+                     else liftIO $ do
+                     TIO.putStrLn "Try again."
+                     playFeedbackGame g
+                     
+-- * Hints.
 
 -- | Suggest some words based on the state of the game.
 showHints :: Game -> IO ()

@@ -1,3 +1,12 @@
+{-|
+Module      : Hordle.UI
+Description : CLI for playing Hordle.
+Maintainer  : j.burton@brighton.ac.uk
+Stability   : experimental
+Portability : POSIX
+
+CLI for playing Hordle.
+-}
 {-# LANGUAGE OverloadedStrings #-}
 module Hordle.UI
   (gameOver

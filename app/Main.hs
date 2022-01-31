@@ -11,8 +11,6 @@ module Main where
 
 import qualified Data.Text.IO as TIO
 
-import           Hordle.Hordle (initGame)
-import           Hordle.UI (helpText)
 import           Hordle.Game (playGame, allAIWords)
 
 main :: IO ()

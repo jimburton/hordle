@@ -177,7 +177,7 @@ updateMapWithAttempts a m =
                                     -- update the set of indices in which this char occurs
                                     (Green o) -> Green (Set.union o new)
                                     -- was previously Yellow, overwrite.
-                                    o'         -> Green new) d (Green is) acc
+                                    _         -> Green new) d (Green is) acc
                -- chars which are incorrect
                s'          -> Map.insert d s' acc) m a
 

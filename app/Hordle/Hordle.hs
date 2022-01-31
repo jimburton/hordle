@@ -26,7 +26,6 @@ module Hordle.Hordle (
   , isDictWord
   , backtrack
   , targets
-  , updateMapWithAttempts
   , processInfo
   , score
   ) where
@@ -97,7 +96,7 @@ doGuess :: Game -> Text -> Game
 doGuess g attempt =
   let w = g ^. word
       a = score attempt w in
-    endGame $ g & info %~ updateMapWithAttempts a
+    endGame $ g & info %~ updateMapWithAttempt a
       & attempts %~ (a:)
       & numAttempts %~ (+1)
       & guess    ?~ attempt
@@ -160,8 +159,8 @@ findWords gy b bl =
                         (Right os) -> T.elem c t && fromJust (T.findIndex (==c) t) `Set.notMember` os) gy
             && not (any (`T.elem` t) b))
 
-updateMapWithAttempts :: Guess -> Map Char CharInfo -> Map Char CharInfo
-updateMapWithAttempts a m =
+updateMapWithAttempt :: Guess -> Map Char CharInfo -> Map Char CharInfo
+updateMapWithAttempt a m =
   foldl' (\acc (d,s) ->
              case s of
                (Yellow os) -> Map.insertWith
@@ -183,7 +182,7 @@ updateMapWithAttempts a m =
 
 -- | Update the info map in a game with an attempt.
 mapAttempt :: Game -> Guess -> Game
-mapAttempt g a = g & info %~ updateMapWithAttempts a
+mapAttempt g a = g & info %~ updateMapWithAttempt a
 
 -- | Update a game with a word and its manually entered score.
 processInfo :: Text -> Text -> Game -> Game

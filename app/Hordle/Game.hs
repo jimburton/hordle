@@ -9,14 +9,13 @@ Portability : POSIX
 Functions for playing a game of Hordle.
 -}
 module Hordle.Game (playGame
-                   , aiGame
-                   , aiGameWithWord
+                   , solve
+                   , solveWithWord
                    , feedbackGame
-                   , allAIWords
-                   , playGameAI
+                   , solveAll
                    , showHints
                    , showHint
-                   , problemAIWords) where
+                   ) where
 
 import           Lens.Micro ((^.))
 import           Control.Monad.IO.Class (liftIO)
@@ -48,7 +47,7 @@ import           Hordle.UI (drawGrid, gameOver)
 -- * Playing the game.
 
 -- | Play the game by querying the user for words until they guess the word or have
--- | used their five guesses.
+-- | used their six guesses.
 playGame :: Game -> IO ()
 playGame g = runInputT defaultSettings loop
  where
@@ -83,33 +82,16 @@ playGame g = runInputT defaultSettings loop
                          playGame g'
 
 -- | Start a game with a random target and a solver.
-aiGame :: IO ()
-aiGame = do
+solve :: IO ()
+solve = do
   g <- initGame
   -- TIO.putStrLn (g ^. word)
   -- ts <- targets
-  playGameAI g 1 stdout
-
--- | Start a game with a given word and a solver.
-aiGameWithWord :: Handle -> Text -> IO ()
-aiGameWithWord h w = playGameAI (initGameWithWord w) 1 h
-
--- | Run the solver against all words.
-allAIWords :: IO ()
-allAIWords = do
-  h <- openFile "etc/solver.log" WriteMode 
-  targets >>= mapM_ (aiGameWithWord h)
-  hClose h
-
--- | Run the solver against all words.
-problemAIWords :: IO ()
-problemAIWords = do
-  T.lines <$> TIO.readFile "etc/fail.log" >>=
-    mapM_ (aiGameWithWord stdout) 
+  solveTurn g 1 stdout
 
 -- | Allow the AI solver to take guesses until the game is over.
-playGameAI :: Game -> Int -> Handle -> IO ()
-playGameAI g i h = do
+solveTurn :: Game -> Int -> Handle -> IO ()
+solveTurn g i h = do
   -- drawGrid g
   if g ^. done
     then do let t = "WORD: "<>g ^. word<>", SUCCESS: "<>T.pack (show $ g ^. success)<>", GUESSES: "<>T.pack (show (g ^. numAttempts))
@@ -119,17 +101,34 @@ playGameAI g i h = do
     ht <- hint g
     case ht of
       Nothing  -> do
-        playGameAI (backtrack g) i h
+        solveTurn (backtrack g) i h
       (Just t) -> do
-        playGameAI (doGuess g t) (i+1) h
+        solveTurn (doGuess g t) (i+1) h
+
+-- | Start a game with a given word and a solver.
+solveWithWord :: Handle -> Text -> IO ()
+solveWithWord h w = solveTurn (initGameWithWord w) 1 h
+
+-- | Run the solver against all words.
+solveAll :: IO ()
+solveAll = do
+  h <- openFile "etc/solver.log" WriteMode 
+  targets >>= mapM_ (solveWithWord h)
+  hClose h
+
+-- | Run the solver against all words.
+problemWords :: IO ()
+problemWords = do
+  T.lines <$> TIO.readFile "etc/fail.log" >>=
+    mapM_ (solveWithWord stdout) 
 
 -- | Play a game while entering the scores manually.
 feedbackGame :: IO ()
-feedbackGame = playFeedbackGame emptyGame
+feedbackGame = feedbackTurn emptyGame
 
 -- | Take moves and their feedback scores until the game is done.
-playFeedbackGame :: Game -> IO ()
-playFeedbackGame g = runInputT defaultSettings loop
+feedbackTurn :: Game -> IO ()
+feedbackTurn g = runInputT defaultSettings loop
  where
    loop :: InputT IO ()
    loop = do
@@ -152,10 +151,10 @@ playFeedbackGame g = runInputT defaultSettings loop
                        case h of
                          Nothing  -> TIO.putStrLn "No suggestions, sorry."
                          (Just t) -> do TIO.putStrLn ("Try "<>t)
-                                        playFeedbackGame g'
+                                        feedbackTurn g'
                      else liftIO $ do
                      TIO.putStrLn "Try again."
-                     playFeedbackGame g
+                     feedbackTurn g
                      
 -- * Hints.
 

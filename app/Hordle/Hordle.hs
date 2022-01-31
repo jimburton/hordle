@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell, OverloadedStrings, TupleSections #-}
+{-# LANGUAGE TemplateHaskell, OverloadedStrings, TupleSections, MultiWayIf #-}
 {-|
 Module      : Hordle.Hordle
 Description : Core library for playing Hordle.
@@ -27,7 +27,9 @@ module Hordle.Hordle (
   , backtrack
   , targets
   , updateMapWithAttempts
-  , processInfo ) where
+  , processInfo
+  --, scoreBug
+  ) where
 
 import           Data.Text (Text)
 import qualified Data.Text as T
@@ -133,7 +135,7 @@ hint g = do
   let res = sortBy (\(_,l1) (_,l2) -> l1 `compare` l2) reds'
   pure $ fst <$> listToMaybe res
 
-updateMapWithAttempts :: [(Char, CharInfo)] -> Map Char CharInfo -> Map Char CharInfo
+updateMapWithAttempts :: Guess -> Map Char CharInfo -> Map Char CharInfo
 updateMapWithAttempts a m =
   foldl' (\acc (d,s) ->
              case s of
@@ -145,25 +147,22 @@ updateMapWithAttempts a m =
                                     -- was previously Correct, keep it that way and ignore the new info.
                                     o'         -> o') d (Yellow si) acc
                -- chars which are correct and incorrect
-               s'          -> case Map.lookup d acc of
-                                (Just (Green _)) -> acc
-                                _                -> Map.insert d s' acc) m a
+               s'          -> Map.insert d s' acc) m a
 
 -- | Set the status of each char in a guess.
-processAttempt :: Text       -- ^ The target word
-       -> [(Char, Int)]      -- ^ The attempt
-       -> [(Char, CharInfo)] -- ^ A pair of chars and their status in the guess.
+processAttempt :: Text   -- ^ The target word
+       -> [(Char, Int)]  -- ^ The attempt
+       -> Guess          -- ^ A pair of chars and their status in the guess.
 processAttempt target attempt =
   let w' = T.unpack target
       iw = yellows target attempt in
-    map (\(c, (d,i)) -> if c==d
-                        then (d, Green i)
-                        else if d `notElem` w'
-                             then (d, Black)
-                             else (d, maybeInc iw (d,i))) (zip w' attempt)
+    map (\(c, (d,i)) -> if
+            | c==d           -> (d, Green i)
+            | d `notElem` w' -> (d, Black)
+            | otherwise      -> (d, maybeInc iw (d,i))) (zip w' attempt)
 
 -- | Find the Yellow and Black chars in an attempt.
-maybeInc :: [(Char, CharInfo)] -> (Char, Int) -> CharInfo
+maybeInc :: Guess -> (Char, Int) -> CharInfo
 maybeInc [] _                      = Black
 maybeInc ((c, Yellow si):iw) (d,i) = if c==d && Set.member i si
                                      then Yellow si
@@ -171,11 +170,11 @@ maybeInc ((c, Yellow si):iw) (d,i) = if c==d && Set.member i si
 maybeInc (_:iw) di                 = maybeInc iw di
 
 -- | Find the Yellow chars in an attempt.
-yellows :: Text               -- ^ The target word
-        -> [(Char, Int)]      -- ^ The attempt
-        -> [(Char, CharInfo)] -- ^ A list of pairs of (chars in word but not in right position, their indices)
+yellows :: Text          -- ^ The target word
+        -> [(Char, Int)] -- ^ The attempt
+        -> Guess         -- ^ A list of pairs of (chars in word but not in right position, their indices)
 yellows target attempt = inc' target attempt []
-  where inc' :: Text -> [(Char, Int)] -> [(Char, CharInfo)] -> [(Char, CharInfo)]
+  where inc' :: Text -> [(Char, Int)] -> Guess -> Guess
         inc' _ [] res = res
         inc' t a res  =
           if T.null t
@@ -193,7 +192,7 @@ dropOne c t
   | otherwise     = T.head t `T.cons` dropOne c (T.tail t)
 
 -- | Update the info map in a game with an attempt.
-mapAttempt :: Game -> [(Char, CharInfo)] -> Game
+mapAttempt :: Game -> Guess -> Game
 mapAttempt g a = g & info %~ updateMapWithAttempts a
 
 -- | Update a game with a word and its manually entered score.
@@ -263,3 +262,11 @@ findWords gy b bl =
                         (Left i)   -> T.index t i == c
                         (Right os) -> T.elem c t && fromJust (T.findIndex (==c) t) `Set.notMember` os) gy
             && not (any (`T.elem` t) b))
+
+scoreBug :: Text -> Text -> Guess
+scoreBug guess target = 
+  map (\((c,d),i) -> if c==d 
+                     then (c, Green i)
+                     else if T.elem c target
+                          then (c, Yellow (Set.singleton i))
+                          else (c, Black)) $ zip (T.zip guess target) [0..]

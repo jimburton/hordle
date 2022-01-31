@@ -16,6 +16,52 @@ backtracking algorithm to pick the next guess, choosing one that will
 minimise the subsequent possibilities but retracing its steps when
 that turned out to be a bad choice.
 
+The three main ways to interact with the game are
+
++ run the main method to play aninteractive game:
+  
+  ```
+  $ cabal run hordle
+  char in right place.
+  char in word but wrong place.
+  char not in word.
+  Enter a five letter word [Attempt 1]
+  peach
+  +-------------------+
+  | P | E | A | C | H |
+  +-------------------+
+  |   |   |   |   |   |
+  +-------------------+
+  |   |   |   |   |   |
+  +-------------------+
+  |   |   |   |   |   |
+  +-------------------+
+  |   |   |   |   |   |
+  +-------------------+
+  |   |   |   |   |   |
+  +-------------------+
+  Enter a five letter word [Attempt 2]
+  ```
++ open it in the REPL to run the solver against all words. This takes
+  a long time and generates a log in `etc/solver.log`:
+
+  ```
+  $ cabal repl hordle
+  ghci> solveAll
+  ```
+
++ open it in the repl and play a "feedback game". This is one in which
+  you enter words and their score. You can use it to solve third party
+  Wordle type puzzles, such as the original one.
+
+  ```
+  $ cabal repl hordle
+  ghci> feedbackGame 
+  Enter a five letter word and its {G,Y,B} score
+  PEACH BBBBB
+  Try BIDDY
+  Enter a five letter word and its {G,Y,B} score
+  ```
 ## Wordle
 
 In the game of Wordle, the player needs to guess a word within six

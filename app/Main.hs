@@ -10,10 +10,9 @@ Entry point for Hordle.
 module Main where
 
 import qualified Data.Text.IO as TIO
-
-import           Hordle.UI (helpText)
-import           Hordle.Hordle (initGame)
-import           Hordle.Game (playGame, solveAll)
+import Hordle.UI (helpText)
+import Hordle.Hordle (initGame)
+import Hordle.Game (playGame, solveAll, feedbackGame)
 
 main :: IO ()
 main = do

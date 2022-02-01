@@ -108,11 +108,11 @@ $(makeLenses ''Game)
 
 ```
 
-To explain the lenses operators, if we have a `Game` value, `g`, we
+To explain the lens operators, if we have a `Game` value, `g`, we
 can get the value of a field with `(^.)`, e.g.  `g ^. word`. We can
 set the value of a field with `(&)` and `(.~)`, e.g.  `g & word .~
 "HELLO"`. We can apply a function, `f`, to a field with `(%~)`, e.g.
-`g & word %~ T.toUpper`. The `(?~)` operator sets a value in a field
+`g & word %~ f`. The `(?~)` operator sets a value in a field
 that contains a `Maybe`.
 
 The `_info` field is a

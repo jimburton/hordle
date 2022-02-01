@@ -127,13 +127,7 @@ isBlack _         = False
 
 -- | Get all hints based on the constraints.
 hints :: Game -> IO [Text]
-hints g = do
-  let inf = Map.toList $ g ^. info
-      gy  = map (\(c,i) -> case i of
-                             (Green j)  -> (c,Left j)
-                             (Yellow s) -> (c,Right s)) $ filter ((not . isBlack) . snd) inf
-      b   = map fst $ filter (isBlack . snd) inf
-  findWords gy b (g ^. blacklist) <$> targets
+hints g = findWords (Map.toList $ g ^. info) (g ^. blacklist) <$> targets
 
 -- | Get a single hint based on the constraints.
 hint :: Game -> IO (Maybe Text)
@@ -145,19 +139,18 @@ hint g = do
   pure $ fst <$> listToMaybe res
 
 -- | Find words based on a number of constraints.
-findWords :: [(Char, Either (Set Int) (Set Int))] -- ^ Chars that are in the words, either at an exact index or not in any of a list of indices.
-          -> [Char]                               -- ^ Chars that are not in the words.
+findWords :: [(Char, CharInfo)] -- ^ Chars that are in the words, either at an exact index or not in any of a list of indices.
           -> [Text]                               -- ^ A list of words that must not be in the result. 
           -> [Text]                               -- ^ A list of words to search.
           -> [Text]                               -- ^ The matching words.
-findWords gy b bl =
+findWords inf bl =
   filter (\t ->
-            t `notElem` bl
-            && all (\(c,pos) ->
-                      case pos of
-                        (Left is)  -> all (\i -> T.index t i == c) (Set.elems is)
-                        (Right os) -> T.elem c t && fromJust (T.findIndex (==c) t) `Set.notMember` os) gy
-            && not (any (`T.elem` t) b))
+             t `notElem` bl
+             && all (\(c,pos) ->
+                       case pos of
+                         (Green is)  -> all (\i -> T.index t i == c) (Set.elems is)
+                         (Yellow os) -> T.elem c t && fromJust (T.findIndex (==c) t) `Set.notMember` os
+                         Black       -> not $ c `T.elem` t) inf)
 
 -- | Update the info map with new constraints.
 updateMapWithAttempt :: Guess -> Map Char CharInfo -> Map Char CharInfo
@@ -217,9 +210,7 @@ backtrack g =
                                                 else Map.delete d acc) m (zip b [0..]))
       & attempts  %~ tail
       & blacklist %~ (T.pack (map fst b):)
-      & guess     .~ if length (g ^. attempts) > 1
-                     then Just (T.pack (map fst (head (tail $ g ^. attempts))))
-                     else Nothing
+      & guess     .~ b'
 
 -- * Dictionaries
 

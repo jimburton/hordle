@@ -18,30 +18,9 @@ that turned out to be a bad choice.
 
 The three main ways to interact with the game are
 
-+ run the main method to play aninteractive game:
++ run the main method to play an interactive game: `cabal run
+  hordle`. Enter `:hint` to get a suggestion for your next word.
   
-  ```
-  $ cabal run hordle
-  char in right place.
-  char in word but wrong place.
-  char not in word.
-  Enter a five letter word [Attempt 1]
-  peach
-  +-------------------+
-  | P | E | A | C | H |
-  +-------------------+
-  |   |   |   |   |   |
-  +-------------------+
-  |   |   |   |   |   |
-  +-------------------+
-  |   |   |   |   |   |
-  +-------------------+
-  |   |   |   |   |   |
-  +-------------------+
-  |   |   |   |   |   |
-  +-------------------+
-  Enter a five letter word [Attempt 2]
-  ```
 + open it in the REPL to run the solver against all words. This takes
   a long time and generates a log in `etc/solver.log`:
 
@@ -50,18 +29,11 @@ The three main ways to interact with the game are
   ghci> solveAll
   ```
 
-+ open it in the repl and play a "feedback game". This is one in which
-  you enter words and their score. You can use it to solve third party
-  Wordle type puzzles, such as the original one.
++ open it in the repl and run `feedbackGame` to play a "feedback
+  game". This is one in which you enter words and their score. You can
+  use it to solve third party Wordle type puzzles, such as the
+  original one.
 
-  ```
-  $ cabal repl hordle
-  ghci> feedbackGame 
-  Enter a five letter word and its {G,Y,B} score
-  PEACH BBBBB
-  Try BIDDY
-  Enter a five letter word and its {G,Y,B} score
-  ```
 ## Wordle
 
 In the game of Wordle, the player needs to guess a word within six
@@ -72,30 +44,19 @@ each character is highlighted to indicate whether it is:
 + in the target word at a different position (yellow), or
 + not in the target word (black).
 
-Here is a game being played. Characters not in the target are shown in 
-red, since black characters don't show up well in my terminal.
-
-GIF
-
-Using hints like this is cheating, obviously, but whether the human or
-the solver is doing the work the feedback is used to refine the
-guesses.
-
-Wordle has attracted a great deal of attention from data scientists,
+Wordle has attracted a great deal of attention from data scientists
 who have calculated all sorts of heuristics (such as which words to
-use as the best first guess) and strategies for playing the game. 
-Solvers exist which can solve any game in an average of 3.4 guesses. 
-Note that, unlike ours, these depend on an expensively pre-computed
-decision tree which provides the next best guess in any scenario.
+use as the best first guess) and strategies for playing the game. Many 
+solvers exist.
 
 To model the game in Haskell, the first thing we need is a way of
-representing this information that can be used to filter a list of
-words. We create a datatype `CharInfo`, whose constructors are named
-after the colours used in Wordle. As usual, we import the `Data.Text`
-module with a qualified name, `T`, since it contains many functions
-whose names clash with those in the `Prelude` but import the name of
-the constructor directly for convenience.  We do the same for
-`Data.Set`.
+representing the result of a guess. We create a datatype `CharInfo`,
+whose constructors are named after the colours used in Wordle. A value
+of `CharInfo` is either `Green s`, where `s` is a set of ints which
+are the indices in the target word that a character does appear, `Yellow s`, 
+where `s` is a set of indices where a character does not appear
+(the implication being that it does appear somewhere else) or `Black`,
+to indicate that a character is not found in the target word.
 
 ```haskell
 import           Data.Text (Text)
@@ -107,32 +68,25 @@ data CharInfo = Green (Set Int)    -- ^ Char is definitely at these indices.
                 | Yellow (Set Int) -- ^ Char is in the target word but not at any of these positions.
                 | Black            -- ^ Char is not in the target word.
                 deriving (Show, Eq)
-				
-type Guess = [(Char, CharInfo)]
 ```
 
-Now we can take a guess and score it against a target word. We zip the characters
+Now we can take an attempt and score it against a target word. We zip the characters
 from the two `Text` values together, then zip that with a list of integers so we
 can keep track of the index of characters.
 
 ```haskell
+type Guess = [(Char, CharInfo)]
+
 score :: Text -> Text -> Guess
 score guess target = 
   map (\((c,d),i) -> if c==d 
                      then (c, Green (Set.singleton i))
-					 else if T.elem c target
-						  then (c, Yellow (S.singleton i))
-						  else (c, Black)) $ zip (T.zip guess target) [0..]
-```
-Running it in `ghci`:
-
-```
-ghci> :set -XOverloadedStrings
-ghci> score "HOLLY" "LILTS"
-[('H',Black),('O',Black),('L',Green 2),('L',Yellow (fromList [3])),('Y',Black)]
+                     else if T.elem c target
+                          then (c, Yellow (S.singleton i))
+                          else (c, Black)) $ zip (T.zip guess target) [0..]
 ```
 
-Now we need a record that will store all the necessary information for
+Now we create a record that will store all the necessary information for
 a game and can be updated throughout it. We will use lenses with
 the record to make it easy to update its fields.
 
@@ -154,27 +108,29 @@ $(makeLenses ''Game)
 
 ```
 
-Now if we have a `Game` value, `g`, we can get the value of a field with `(^.)`, e.g.
-`g ^. word`, we can set the value of a field with `(&)` and `(.~)`, e.g. 
-`g & word .~ "HELLO"`, and we can apply a function, `f`, to a field with `(%~)`, e.g.
-`g & word %~ T.toUpper`. The `(?~)` operator sets a value in a field that contains a
-`Maybe`.
+To explain the lenses operators, if we have a `Game` value, `g`, we
+can get the value of a field with `(^.)`, e.g.  `g ^. word`. We can
+set the value of a field with `(&)` and `(.~)`, e.g.  `g & word .~
+"HELLO"`. We can apply a function, `f`, to a field with `(%~)`, e.g.
+`g & word %~ T.toUpper`. The `(?~)` operator sets a value in a field
+that contains a `Maybe`.
 
 The `_info` field is a
 [map](https://hackage.haskell.org/package/containers-0.4.0.0/docs/Data-Map.html)
-from `Char`s to `CharInfo` values. The map will be updated after each
-guess. It is used when the human player asks for a hint, or the
-automated solver picks its next guess. The function that handles a new
-guess will need to take a `Game` and produce a new one with an updated
-`_info` map.
+from `Char`s to `CharInfo` values. Each character that has appeared in
+a guess will have an entry in the map, which will be updated after
+each guess. It is used when the human player asks for a hint and when
+the automated solver picks its next guess. The function that handles a
+new guess will need to take a `Game` and produce a new one with an
+updated `_info` map.
 
 ## Creating games
 
-The game needs to use a dictionary to find random target words and to check that
-every attempt is a real word. In fact, the game uses two disctionaries: a relatively
-short one for target words, and a more complete one for checking guesses against.
-Creating a game with a random target word requires IO. We also want to be able to 
-create games based on predetermined words.
+Some of the functions that create new games run in the IO monad,
+whereas some are pure. This is becuase some of them need access to a
+dictionary in order to pick a random starting word. In fact, the game
+uses two dictionaries: a relatively short one for target words, and a
+more complete one for checking guesses against.
 
 ```haskell
 -- | A dictionary of five letter words.
@@ -240,18 +196,18 @@ endGame g = let won = not (null $ g ^. attempts) && all (isGreen . snd) (head (g
 ```
 
 The `updateMapWithAttempt` function called in `doGuess` takes a
-`Guess` and the old map then updates it. It does this using a fold. If
-a character has been scored as black, we just insert it -- if it was
-already there this will overwrite the previous value, but that will
-have no effect. If a character was scored as yellow, it could be that
-it has previously been scored as green, so we need to check that. If
-it was previously green we keep it that way. Otherwise, we add to the
-set of positions this character is not at. The opposite is true of
-adding characters scored as green -- if they were previously yellow,
-we overwrite the old value, otherwise we update the set of location.
-The `insertWith` function uses its first argument to update an
-existing value. Its second argument is the key. Its third argument is
-used as the value if the key does not exist in the map.
+`Guess` and the old info map then updates it. It does this using a
+fold. If a character has been scored as black, we simply insert it 
+-- this will overwrite the previous value if there was one, but
+that will have no effect. If a character was scored as yellow, it
+could be that it has previously been scored as green, so we need to
+check for that. If it was previously green we keep it that way. Otherwise,
+we add to the set of positions this character is not at. The opposite
+is true of adding characters scored as green -- if they were
+previously yellow, we overwrite the old value, otherwise we update the
+set of locations.  The `insertWith` function uses its first argument to
+update an existing value. Its second argument is the key. Its third
+argument is used as the value if the key does not exist in the map.
 
 ```haskell
 -- | Update the info map with new constraints.
@@ -262,24 +218,25 @@ updateMapWithAttempt a m =
                (Yellow os) -> Map.insertWith
                               (\(Yellow new) old ->
                                   case old of
-                                    -- update the set of indices in which this char occurs
+                                    -- update the set of indices in which this char does not occur.
                                     (Yellow o) -> Yellow (Set.union o new)
                                     -- was previously Green, keep it that way and ignore the new info.
                                     o'         -> o') d (Yellow os) acc
                (Green is) -> Map.insertWith
                               (\(Green new) old ->
                                   case old of
-                                    -- update the set of indices in which this char occurs
+                                    -- update the set of indices in which this char occurs.
                                     (Green o) -> Green (Set.union o new)
                                     -- was previously Yellow, overwrite.
                                     _         -> Green new) d (Green is) acc
-               -- chars which are incorrect
+               -- black.
                s'          -> Map.insert d s' acc) m a
 ```
 
 Now we can actually play a game, taking guesses from the user until
-the game is over. We use the `haskeline` library to make it more
-convenient to use the terminal to enter guesses.
+the game is over. We use the `haskeline` library to make things more
+convenient for the user, allowing them to use the backspace and arrow
+keys when entering guesses.
 
 ```haskell
 -- | Play the game by querying the user for words until they guess the word or have
@@ -322,46 +279,52 @@ gameOver g = if g ^. success
 
 ## Hints
 
-So far we have created a simple word-guessing game. The more
-interesting task is writing an automated solver for the game. The
-first step towards that is to find all words that can match a given
-set of constraints. If we have a list of words we can filter it
-against the constraint provided by a pair of a `Char` and a `CharInfo`
-value.
+So far we have created a straightforward word-guessing game. The more
+interesting task is writing an automated solver for it. The first step
+towards that is to find all words that can match a given set of
+constraints. If we have a list of words we can filter it against the
+constraints provided by a list of pairs of `Char`s and `CharInfo`
+values.
 
 ```haskell
-findWords :: Guess -> [Text] -> [Text]
-findWords (c,ci) ts = let f = case ci of
-                                (Green i)  -> \t -> T.index t i == c
-								(Yellow i) -> \t -> T.elem c t && fromJust (T.findIndex (==c) t) `S.notMember` i
-								(Black)    -> \t -> not $ T.elem c t in
-	filter f ts
+-- | Find words based on a number of constraints.
+findWords :: [(Char, CharInfo)] -- ^ Chars and constraints on where they may appear in a word.
+          -> [Text]             -- ^ A list of words that must not be in the result. 
+          -> [Text]             -- ^ A list of words to search.
+          -> [Text]             -- ^ The matching words.
+findWords inf bl =
+  let gy = filter (not . isBlack . snd) inf
+      b  = filter (isBlack . snd) inf in
+    filter (\t ->
+              t `notElem` bl
+             && all (\(c,pos) ->
+                       case pos of
+                         (Green is)  -> all (\i -> T.index t i == c) (Set.elems is)
+                         (Yellow os) -> T.elem c t && fromJust (T.findIndex (==c) t) `Set.notMember` os
+                         Black       -> not $ c `T.elem` t) inf)
 ```
-The `f` function chooses the right function to apply depending on the constraint. 
-If we have a list of constraints we can apply them all to each word by mapping 
-`f` onto the list of constraints and using `all` to apply them all to each word.
+
+We use `findWords` to get hints for a game in its current state.
 
 ```haskell
-findWords :: [Guess] -> [Text] -> [Text]
-findWords cs ts = let f  = case ci of
-                            (Green i)  -> \t -> T.index t i == c
-							(Yellow i) -> \t -> T.elem c t && fromJust (T.findIndex (==c) t) `S.notMember` i
-							(Black)    -> \t -> not $ T.elem c t 
-	                  fs = map f cs in
-	filter (all fs) ts
+-- | Get all hints based on the constraints.
+hints :: Game -> IO [Text]
+hints g = findWords (Map.toList $ g ^. info) (g ^. blacklist) <$> targets
 ```
 
-At the beginning of the game when there are no constraints, the hints
-will include the entire dictionary. As soon as we start accumulating
-information that list will be rapidly narrowed down. Each time we make
-a guess the feedback we get adds more constraints, narrowing down the
-next set of candidate words.
+At the beginning of the game when there is no information available
+about the target word, the hints will include the entire
+dictionary. As soon as we start accumulating information that list
+will be rapidly narrowed down. Each time we make a guess the feedback
+we get adds more constraints, narrowing down the next set of candidate
+words.
 
 Our strategy to pick a word from the available candidates such that
 the *subsequent* list of candidates will be as small as possible. So
 we look at all words that match the given constraints, apply each of
 them as the next guess then look at each list of resulting possible
-candidates. We then take one of the words with the shortest list.
+candidates. We then take one of the words that yields the shortest
+list of hints.
 
 ```haskell
 -- | Get a single hint based on the constraints.
@@ -377,8 +340,9 @@ hint g = do
 This is a *greedy* algorithm, because it picks a candidate word that
 looks like it may be a good one given the current information, but it
 could make the wrong choice. Some words will prove to be a dead end,
-and we will need to retrace our steps if that happens. This takes
-place in thefunction that plays an automated game, `solveTurn`.
+and we will need to retrace our steps if that happens. This
+*backtracking* takes place in the function that plays an automated
+game, `solveTurn`.
 
 ```haskell
 -- | Start a game with a random target and a solver.
@@ -433,11 +397,9 @@ backtrack g =
                                                 else Map.delete d acc) m (zip b [0..]))
       & attempts  %~ tail
       & blacklist %~ (T.pack (map fst b):)
-      & guess     .~ if length (g ^. attempts) > 1
-                     then Just (T.pack (map fst (head (tail $ g ^. attempts))))
-                     else Nothing
+      & guess     .~ b'
 ```
 
-This simple backtracking greedy algorithm isn't fast, but it can guess
+This simple greedy backtracking algorithm isn't fast, but it can guess
 any word in the 2300 list of Wordle words in less than 3 guesses on
 average.

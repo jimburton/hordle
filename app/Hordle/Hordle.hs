@@ -43,7 +43,6 @@ import           Lens.Micro.TH (makeLenses)
 import           Lens.Micro ((&), (.~), (%~), (^.), (?~))
 import           System.Random (getStdRandom, randomR)
 import           Data.Functor ((<&>))
-import Debug.Trace
 
 -- * Types
 

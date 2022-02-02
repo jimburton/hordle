@@ -25,7 +25,6 @@ import qualified Data.Text as T
 import           Data.Time (getCurrentTime) 
 import           System.IO
 import           System.Console.Haskeline
-import           Debug.Trace
 import           Hordle.Hordle
   (Game
   , done
@@ -91,12 +90,10 @@ firstGuess :: Game -> Game
 firstGuess = flip doGuess firstWord
 
 -- | Start a game with a random target and a solver.
-solve :: IO Game
-solve = do
+solve :: Handle -> IO Game
+solve h = do
   g <- initGame
-  -- TIO.putStrLn (g ^. word)
-  -- ts <- targets
-  solveTurn (firstGuess g) stdout
+  solveTurn (firstGuess g) h
 
 -- | Start a game with a given word and a solver.
 solveWithWord :: Handle -> Text -> IO Game
@@ -114,10 +111,8 @@ solveTurn g h = do
     else do
     ht <- hint g
     case ht of
-      Nothing  -> do
-        solveTurn (backtrack g) h
-      (Just t) -> do
-        trace (T.unpack t) $ solveTurn (doGuess g t) h
+      Nothing  -> solveTurn (backtrack g) h
+      (Just t) -> solveTurn (doGuess g t) h
 
 -- | Run the solver against all words.
 solveAll :: IO ()

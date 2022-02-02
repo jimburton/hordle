@@ -12,7 +12,8 @@ import Hordle.Game (solve)
 
 prop_solver :: Property
 prop_solver = monadicIO $ do
-  g <- liftIO solve
+  h <- liftIO $ openFile "/dev/null" WriteMode
+  g <- liftIO $ solve h
   assert (_success g)
 
 main :: IO ()

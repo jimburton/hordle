@@ -69,6 +69,7 @@ test-suite test-hordle
     hs-source-dirs: test, app
     build-depends: base ^>=4.15.0.0
                  , text ^>=1.2.5.0
+                 , time
                  , random
                  , containers
                  , microlens

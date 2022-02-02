@@ -18,7 +18,7 @@ that turned out to be a bad choice.
 
 The three main ways to interact with the game are
 
-+ run the main method to play an interactive game: `cabal run
++ run the main function to play an interactive game: `cabal run
   hordle`. Enter `:hint` to get a suggestion for your next word.
   
 + open it in the REPL to run the solver against all words. This takes

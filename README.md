@@ -311,9 +311,12 @@ hints g = findWords (Map.toList $ g ^. info) (g ^. blacklist) <$> dict
 ```
 
 At the beginning of the game when there is no information available
-about the target word, and we have to pick one without help. According
-to the experts, SOARE (meaning a young hawk) is a good starting word.
-It includes the most common letters in their most common positions.
+about the target word, and we have to pick one without help. We want a
+word that contains the most commonly occuring letters and, even
+better, has them in the positions that those letters most commonly
+occur. [According to the
+experts](https://scroll.in/article/1016325/this-is-the-best-word-to-start-wordle-with-according-to-a-language-researcher),
+SOARE (meaning a young hawk) is a good choice, and it seems to work well.
 
 ```haskell
 -- | Best starting word? 

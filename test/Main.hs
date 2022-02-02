@@ -10,7 +10,7 @@ import Control.Monad.IO.Class (liftIO)
 import Hordle.Hordle (Game(..))
 import Hordle.Game (solve)
 
--- prop_solver :: Property
+prop_solver :: Property
 prop_solver = monadicIO $ do
   g <- liftIO solve
   assert (_success g)

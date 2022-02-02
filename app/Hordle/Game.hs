@@ -24,7 +24,7 @@ import           Data.Text (Text)
 import qualified Data.Text as T
 import           System.IO
 import           System.Console.Haskeline
-
+import           Debug.Trace
 import           Hordle.Hordle
   (Game
   , done
@@ -81,17 +81,25 @@ playGame g = runInputT defaultSettings loop
                          drawGrid g'
                          playGame g'
 
+-- | Best starting word?
+firstWord :: Text
+firstWord = "SOARE"
+
+-- | Apply the fixed fist word for automated games.
+firstGuess :: Game -> Game
+firstGuess = flip doGuess firstWord
+
 -- | Start a game with a random target and a solver.
 solve :: IO ()
 solve = do
   g <- initGame
   -- TIO.putStrLn (g ^. word)
   -- ts <- targets
-  solveTurn g 1 stdout
+  solveTurn (firstGuess g) stdout
 
 -- | Allow the AI solver to take guesses until the game is over.
-solveTurn :: Game -> Int -> Handle -> IO ()
-solveTurn g i h = do
+solveTurn :: Game -> Handle -> IO ()
+solveTurn g h = do
   -- drawGrid g
   if g ^. done
     then do let t = "WORD: "<>g ^. word<>", SUCCESS: "<>T.pack (show $ g ^. success)<>", GUESSES: "<>T.pack (show (g ^. numAttempts))
@@ -101,13 +109,13 @@ solveTurn g i h = do
     ht <- hint g
     case ht of
       Nothing  -> do
-        solveTurn (backtrack g) i h
+        solveTurn (backtrack g) h
       (Just t) -> do
-        solveTurn (doGuess g t) (i+1) h
+        trace (T.unpack t) $ solveTurn (doGuess g t) h
 
 -- | Start a game with a given word and a solver.
 solveWithWord :: Handle -> Text -> IO ()
-solveWithWord h w = solveTurn (initGameWithWord w) 1 h
+solveWithWord h w = solveTurn (firstGuess $ initGameWithWord w) h
 
 -- | Run the solver against all words.
 solveAll :: IO ()

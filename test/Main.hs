@@ -7,14 +7,13 @@ import Test.Framework.Providers.QuickCheck2
 import System.IO
 import Control.Monad.IO.Class (liftIO)
 
-import Hordle.Hordle
-import Hordle.Game (aiGameWithWord)
+import Hordle.Hordle (Game(..))
+import Hordle.Game (solve)
 
-prop_solver :: Property
+-- prop_solver :: Property
 prop_solver = monadicIO $ do
-  t <- liftIO $ targets
-  n <- run $ generate $ choose (0, 2000)
-  liftIO $ aiGameWithWord stdout (t !! n)
+  g <- liftIO solve
+  assert (_success g)
 
 main :: IO ()
 main = defaultMain tests

@@ -59,11 +59,6 @@ where `s` is a set of indices where a character does not appear
 to indicate that a character is not found in the target word.
 
 ```haskell
-import           Data.Text (Text)
-import qualified Data.Text as T
-import           Data.Set (Set)
-import qualified Data.Set as S
-
 data CharInfo = Green (Set Int)    -- ^ Char is definitely at these indices.
                 | Yellow (Set Int) -- ^ Char is in the target word but not at any of these positions.
                 | Black            -- ^ Char is not in the target word.
@@ -304,20 +299,35 @@ findWords inf bl =
                          Black       -> not $ c `T.elem` t) inf)
 ```
 
-We use `findWords` to get hints for a game in its current state.
+We use `findWords` to get hints for a game in its current state. Note that,
+to give the solver the same sort of problem as a human player, hints are
+taken from the long dictionary, which is a superset of the possible target
+words.
 
 ```haskell
 -- | Get all hints based on the constraints.
 hints :: Game -> IO [Text]
-hints g = findWords (Map.toList $ g ^. info) (g ^. blacklist) <$> targets
+hints g = findWords (Map.toList $ g ^. info) (g ^. blacklist) <$> dict
 ```
 
 At the beginning of the game when there is no information available
-about the target word, the hints will include the entire
-dictionary. As soon as we start accumulating information that list
-will be rapidly narrowed down. Each time we make a guess the feedback
-we get adds more constraints, narrowing down the next set of candidate
-words.
+about the target word, and we have to pick one without help. According
+to the experts, SOARE (meaning a young hawk) is a good starting word.
+It includes the most common letters in their most common positions.
+
+```haskell
+-- | Best starting word? 
+firstWord :: Text
+firstWord = "SOARE"
+
+-- | Apply the fixed first word for automated games.
+firstGuess :: Game -> Game
+firstGuess = flip doGuess firstWord
+```
+
+As soon as we start accumulating information that list will be rapidly
+narrowed down. Each time we make a guess the feedback we get adds more
+constraints, narrowing down the next set of candidate words.
 
 Our strategy to pick a word from the available candidates such that
 the *subsequent* list of candidates will be as small as possible. So
@@ -349,11 +359,17 @@ game, `solveTurn`.
 solve :: IO ()
 solve = do
   g <- initGame
-  solveTurn g 1 stdout
+  -- TIO.putStrLn (g ^. word)
+  -- ts <- targets
+  solveTurn (firstGuess g) stdout
+
+-- | Start a game with a given word and a solver.
+solveWithWord :: Handle -> Text -> IO ()
+solveWithWord h w = solveTurn (firstGuess $ initGameWithWord w) h
 
 -- | Allow the AI solver to take guesses until the game is over.
-solveTurn :: Game -> Int -> Handle -> IO ()
-solveTurn g i h = do
+solveTurn :: Game -> Handle -> IO ()
+solveTurn g h = do
   -- drawGrid g
   if g ^. done
     then do let t = "WORD: "<>g ^. word<>", SUCCESS: "<>T.pack (show $ g ^. success)<>", GUESSES: "<>T.pack (show (g ^. numAttempts))
@@ -363,9 +379,9 @@ solveTurn g i h = do
     ht <- hint g
     case ht of
       Nothing  -> do
-        solveTurn (backtrack g) i h
+        solveTurn (backtrack g) h
       (Just t) -> do
-        solveTurn (doGuess g t) (i+1) h
+        trace (T.unpack t) $ solveTurn (doGuess g t) h
 ```
 
 Note that after requesting a hint, we check whether it is `Nothing`.
@@ -401,5 +417,16 @@ backtrack g =
 ```
 
 This simple greedy backtracking algorithm isn't fast, but it can guess
-any word in the 2300 list of Wordle words in less than 3 guesses on
+any word in the 2300 list of Wordle words in less than 4 guesses on
 average.
+
+Finally, we write a QuickCheck test which checks that the solver works.
+Run it with `cabal run test-hordle`.
+
+```haskell
+prop_solver :: Property
+prop_solver = monadicIO $ do
+  g <- liftIO solve
+  assert (_success g)
+```
+

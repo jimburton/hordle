@@ -81,30 +81,35 @@ playGame g = runInputT defaultSettings loop
                          drawGrid g'
                          playGame g'
 
--- | Best starting word?
+-- | Best starting word? 
 firstWord :: Text
 firstWord = "SOARE"
 
--- | Apply the fixed fist word for automated games.
+-- | Apply the fixed first word for automated games.
 firstGuess :: Game -> Game
 firstGuess = flip doGuess firstWord
 
 -- | Start a game with a random target and a solver.
-solve :: IO ()
+solve :: IO Game
 solve = do
   g <- initGame
   -- TIO.putStrLn (g ^. word)
   -- ts <- targets
   solveTurn (firstGuess g) stdout
 
+-- | Start a game with a given word and a solver.
+solveWithWord :: Handle -> Text -> IO Game
+solveWithWord h w = solveTurn (firstGuess $ initGameWithWord w) h
+
 -- | Allow the AI solver to take guesses until the game is over.
-solveTurn :: Game -> Handle -> IO ()
+solveTurn :: Game -> Handle -> IO Game
 solveTurn g h = do
   -- drawGrid g
   if g ^. done
     then do let t = "WORD: "<>g ^. word<>", SUCCESS: "<>T.pack (show $ g ^. success)<>", GUESSES: "<>T.pack (show (g ^. numAttempts))
             TIO.hPutStrLn h t
             hFlush h
+            pure g
     else do
     ht <- hint g
     case ht of
@@ -113,10 +118,6 @@ solveTurn g h = do
       (Just t) -> do
         trace (T.unpack t) $ solveTurn (doGuess g t) h
 
--- | Start a game with a given word and a solver.
-solveWithWord :: Handle -> Text -> IO ()
-solveWithWord h w = solveTurn (firstGuess $ initGameWithWord w) h
-
 -- | Run the solver against all words.
 solveAll :: IO ()
 solveAll = do
@@ -124,7 +125,7 @@ solveAll = do
   targets >>= mapM_ (solveWithWord h)
   hClose h
 
--- | Run the solver against all words.
+-- | Run the solver against problematic words.
 problemWords :: IO ()
 problemWords = do
   T.lines <$> TIO.readFile "etc/fail.log" >>=

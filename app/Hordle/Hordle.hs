@@ -127,7 +127,7 @@ isBlack _         = False
 
 -- | Get all hints based on the constraints. 
 hints :: Game -> IO [Text]
-hints g = findWords (Map.toList $ g ^. info) (g ^. blacklist) <$> targets
+hints g = findWords (Map.toList $ g ^. info) (g ^. blacklist) <$> dict
 
 -- | Get a single hint based on the constraints.
 hint :: Game -> IO (Maybe Text)

@@ -360,11 +360,7 @@ game, `solveTurn`.
 ```haskell
 -- | Start a game with a random target and a solver.
 solve :: IO ()
-solve = do
-  g <- initGame
-  -- TIO.putStrLn (g ^. word)
-  -- ts <- targets
-  solveTurn (firstGuess g) stdout
+solve = solveTurn (firstGuess g) stdout
 
 -- | Start a game with a given word and a solver.
 solveWithWord :: Handle -> Text -> IO ()

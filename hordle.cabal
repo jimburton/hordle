@@ -34,6 +34,7 @@ executable hordle
     build-depends:    base ^>=4.15.0.0
                     , text ^>=1.2.5.0
                     , random
+                    , time
                     , containers
                     , microlens
                     , microlens-th
@@ -54,6 +55,7 @@ executable stats
     -- other-extensions:
     build-depends:    base ^>=4.15.0.0
                     , text ^>=1.2.5.0
+                    , time
     hs-source-dirs:   app
     ghc-options: -Wall 
     default-language: Haskell2010

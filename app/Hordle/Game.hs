@@ -22,6 +22,7 @@ import           Control.Monad.IO.Class (liftIO)
 import qualified Data.Text.IO as TIO
 import           Data.Text (Text)
 import qualified Data.Text as T
+import           Data.Time (getCurrentTime) 
 import           System.IO
 import           System.Console.Haskeline
 import           Debug.Trace
@@ -121,15 +122,19 @@ solveTurn g h = do
 -- | Run the solver against all words.
 solveAll :: IO ()
 solveAll = do
-  h <- openFile "etc/solver.log" WriteMode 
+  h <- openFile "etc/solver.log" WriteMode
+  begin <- getCurrentTime
+  TIO.hPutStrLn h (T.pack $ show begin)
   targets >>= mapM_ (solveWithWord h)
+  end <- getCurrentTime
+  TIO.hPutStrLn h (T.pack $ show end)
   hClose h
 
 -- | Run the solver against problematic words.
 problemWords :: IO ()
 problemWords = do
-  T.lines <$> TIO.readFile "etc/fail.log" >>=
-    mapM_ (solveWithWord stdout) 
+  TIO.readFile "etc/fail.log" >>=
+    mapM_ (solveWithWord stdout) . T.lines 
 
 -- | Play a game while entering the scores manually.
 feedbackGame :: IO ()

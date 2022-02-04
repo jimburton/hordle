@@ -43,6 +43,8 @@ import           Lens.Micro.TH (makeLenses)
 import           Lens.Micro ((&), (.~), (%~), (^.), (?~))
 import           System.Random (getStdRandom, randomR)
 import           Data.Functor ((<&>))
+import           Data.Vector (Vector)
+import qualified Data.Vector as V 
 
 -- * Types
 
@@ -125,31 +127,31 @@ isBlack Black     = True
 isBlack _         = False
 
 -- | Get all hints based on the constraints. 
-hints :: Game -> IO [Text]
+hints :: Game -> IO (Vector Text)
 hints g = findWords (Map.toList $ g ^. info) (g ^. blacklist) <$> dict
 
 -- | Get a single hint based on the constraints.
 hint :: Game -> IO (Maybe Text)
 hint g = do
   hs <- hints g
-  let possibleGames = map (\t -> (t, doGuess g t)) hs
+  let possibleGames = V.map (\t -> (t, doGuess g t)) hs
   reds' <- mapM (\(t,g') -> hints g' <&> (t,) . length) possibleGames
-  let res = sortBy (\(_,l1) (_,l2) -> l1 `compare` l2) reds'
+  let res = sortBy (\(_,l1) (_,l2) -> l1 `compare` l2) $ V.toList reds'
   pure $ fst <$> listToMaybe res
 
 -- | Find words based on a number of constraints.
 findWords :: [(Char, CharInfo)] -- ^ Chars that are in the words, either at an exact index or not in any of a list of indices.
-          -> [Text]                               -- ^ A list of words that must not be in the result. 
-          -> [Text]                               -- ^ A list of words to search.
-          -> [Text]                               -- ^ The matching words.
+          -> [Text]             -- ^ A list of words that must not be in the result. 
+          -> Vector Text        -- ^ A list of words to search.
+          -> Vector Text        -- ^ The matching words.
 findWords inf bl =
-  filter (\t ->
-             t `notElem` bl
-             && all (\(c,pos) ->
-                       case pos of
-                         (Green is)  -> all (\i -> T.index t i == c) (Set.elems is)
-                         (Yellow os) -> T.elem c t && fromJust (T.findIndex (==c) t) `Set.notMember` os
-                         Black       -> not $ c `T.elem` t) inf)
+  V.filter (\t ->
+              t `notElem` bl
+              && all (\(c,pos) ->
+                        case pos of
+                          (Green is)  -> all (\i -> T.index t i == c) (Set.elems is)
+                          (Yellow os) -> T.elem c t && fromJust (T.findIndex (==c) t) `Set.notMember` os
+                          Black       -> not $ c `T.elem` t) inf)
 
 -- | Update the info map with new constraints.
 updateMapWithAttempt :: Guess -> Map Char CharInfo -> Map Char CharInfo
@@ -213,20 +215,23 @@ backtrack g =
 
 -- * Dictionaries
 
+filepathToDict :: FilePath -> IO (Vector Text)
+filepathToDict fp = V.map T.toUpper . V.fromList . T.lines <$> TIO.readFile fp
+  
 -- | A dictionary of five letter words.
-dict :: IO [Text]
-dict = map T.toUpper . T.lines <$> TIO.readFile "etc/long.txt"
+dict :: IO (Vector Text)
+dict = filepathToDict "etc/long.txt"
+
+-- | A list of relatively common words to use as targets.
+targets :: IO (Vector Text)
+targets = filepathToDict "etc/short.txt"
 
 -- | Is a word in the dictionary?
 isDictWord :: Text -> IO Bool
 isDictWord t = dict <&> elem t 
-  
--- | A list of relatively common words to use as targets.
-targets :: IO [Text]
-targets = map T.toUpper . T.lines <$> TIO.readFile "etc/short.txt"
 
 -- | Get a word to be the target for a game.
 getTarget :: IO Text
 getTarget = do
   flw <- targets
-  (flw !!) <$> getStdRandom (randomR (0, length flw))
+  getStdRandom (randomR (0, length flw)) >>= \i -> pure $ (V.!) flw i

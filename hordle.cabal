@@ -41,6 +41,7 @@ executable hordle
                     , brick
                     , vty
                     , haskeline
+                    , vector
     hs-source-dirs:   app
     ghc-options: -Wall 
     default-language: Haskell2010
@@ -56,6 +57,7 @@ executable stats
     build-depends:    base ^>=4.15.0.0
                     , text ^>=1.2.5.0
                     , time
+                    , vector
     hs-source-dirs:   app
     ghc-options: -Wall 
     default-language: Haskell2010
@@ -75,6 +77,7 @@ test-suite test-hordle
                  , microlens
                  , microlens-th
                  , haskeline
+                 , vector
                  , QuickCheck
                  , test-framework
                  , test-framework-quickcheck2

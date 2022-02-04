@@ -215,6 +215,7 @@ backtrack g =
 
 -- * Dictionaries
 
+-- | Read the contents of a file into a vector or words.
 filepathToDict :: FilePath -> IO (Vector Text)
 filepathToDict fp = V.map T.toUpper . V.fromList . T.lines <$> TIO.readFile fp
   
@@ -234,4 +235,4 @@ isDictWord t = dict <&> elem t
 getTarget :: IO Text
 getTarget = do
   flw <- targets
-  getStdRandom (randomR (0, length flw)) >>= \i -> pure $ (V.!) flw i
+  getStdRandom (randomR (0, length flw)) <&> (V.!) flw

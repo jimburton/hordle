@@ -25,6 +25,7 @@ import qualified Data.Text as T
 import           Data.Time (getCurrentTime) 
 import           System.IO
 import           System.Console.Haskeline
+import           Data.Functor (($>))
 import           Hordle.Hordle
   (Game
   , done
@@ -90,10 +91,10 @@ firstGuess :: Game -> Game
 firstGuess = flip doGuess firstWord
 
 -- | Start a game with a random target and a solver.
-solve :: Handle -> IO Game
+solve :: Handle -> IO ()
 solve h = do
   g <- initGame
-  solveTurn (firstGuess g) h
+  solveTurn (firstGuess g) h $> ()
 
 -- | Start a game with a given word and a solver.
 solveWithWord :: Handle -> Text -> IO Game
@@ -124,12 +125,6 @@ solveAll = do
   end <- getCurrentTime
   TIO.hPutStrLn h (T.pack $ show end)
   hClose h
-
--- | Run the solver against problematic words.
-problemWords :: IO ()
-problemWords = do
-  TIO.readFile "etc/fail.log" >>=
-    mapM_ (solveWithWord stdout) . T.lines 
 
 -- | Play a game while entering the scores manually.
 feedbackGame :: IO ()

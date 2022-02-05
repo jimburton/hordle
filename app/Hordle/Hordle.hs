@@ -107,11 +107,11 @@ score :: Text  -- ^ The attempt.
       -> Text  -- ^ The target word.
       -> Guess -- ^ The scored attempt.
 score attempt target = 
-  map (\((c,d),i) -> if c==d 
-                     then (c, Green (Set.singleton i))
-                     else if T.elem c target
-                          then (c, Yellow (Set.singleton i))
-                          else (c, Black)) $ zip (T.zip attempt target) [0..]
+  zipWith (\(c,d) i -> if c==d 
+                       then (c, Green (Set.singleton i))
+                       else if T.elem c target
+                            then (c, Yellow (Set.singleton i))
+                            else (c, Black)) (T.zip attempt target) [0..]
 
 -- | Set the booleans that determine whether the game is over.
 endGame :: Game -> Game
@@ -120,11 +120,9 @@ endGame g = let won = not (null $ g ^. attempts) && all (isGreen . snd) (head (g
                 & done .~ (won || (g ^. numAttempts) == 6)
   
 -- | Predicates for types of CharInfo.
-isGreen, isBlack :: CharInfo -> Bool
+isGreen :: CharInfo -> Bool
 isGreen (Green _) = True
 isGreen _         = False
-isBlack Black     = True
-isBlack _         = False
 
 -- | Get all hints based on the constraints. 
 hints :: Game -> IO (Vector Text)
@@ -181,7 +179,7 @@ mapAttempt g a = g & info %~ updateMapWithAttempt a
 
 -- | Update a game with a word and its manually entered score.
 processInfo :: Text -> Text -> Game -> Game
-processInfo t s g = let a = map (\((c,ci),i) -> (c, charToInfo ci i)) $ zip (T.zip t s) [0..] in
+processInfo t s g = let a = zipWith (curry (\((c, ci), i) -> (c, charToInfo ci i))) (T.zip t s) [0..]  in
   mapAttempt g a & numAttempts %~ (+1)
 
 -- | Convert a Char to a CharInfo value.

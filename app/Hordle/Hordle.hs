@@ -45,6 +45,7 @@ import           System.Random (getStdRandom, randomR)
 import           Data.Functor ((<&>))
 import           Data.Vector (Vector)
 import qualified Data.Vector as V 
+--import Debug.Trace
 
 -- * Types
 

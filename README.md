@@ -10,11 +10,17 @@ purpose is to demonstrate functional problem solving, including the
 use of algebraic datatypes, higher-order functions like `foldl'`, and
 the use of standard data structures like maps and sets.
 
-The solver is simple but it can guess all standard Wordle words in
-well under six guesses, which is the maximum allowed. It uses a greedy
-backtracking algorithm to pick the next guess, choosing one that will
-minimise the subsequent possibilities but retracing its steps when
-that turned out to be a bad choice.
+The solver is simple but it can guess all standard Wordle words. It
+uses a greedy backtracking algorithm to pick the next guess, choosing
+one that will minimise the subsequent possibilities but retracing its
+steps when that turned out to be a bad choice. It's in the spirit of 
+[minimax](https://en.wikipedia.org/wiki/Minimax). It works out which
+word will minimise subsequent possibilities by actually making the
+guess, so in reality it makes many more guesses than are allowed and
+isn't actually a true solver. More interesting solvers use statistical
+properties of words or ideas from Information Theory, such as in [this
+excellent video by Grant
+Sanderson](https://www.youtube.com/watch?v=v68zYyaEmEA&t=17s).
 
 The three main ways to interact with the game are
 
@@ -415,9 +421,17 @@ backtrack g =
       & guess     .~ b'
 ```
 
-This simple greedy backtracking algorithm isn't fast, but it can guess
-any word in the 2300 list of Wordle words in less than 4 guesses on
-average.
+This simple greedy backtracking algorithm is a form of MiniMax. It
+isn't fast, but it can "guess" any word in the 2300 list of Wordle
+words in less than 3 "guesses" on average. However, the algorithm
+looks ahead by making all possible guesses for the current knowledge,
+then picking the best of those guesses, so in fairness you'd have to
+say it makes many more guesses than are recorded as actual
+attempts. Thus, it can't be compared directly to those algorithms that
+pick the next guess without first applying it to see what
+happens. There are sound mathematical reasons to believe no such
+algorithm could do better than an average of three guesses, and the
+best are at about 3.4.
 
 Finally, we write a QuickCheck test which checks that the solver works.
 Run it with `cabal run test-hordle`.

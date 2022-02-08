@@ -17,8 +17,17 @@ import qualified Data.Text as T
 import           Data.Time (getCurrentTime) 
 import           System.IO
 import           Hordle.Hordle
+  ( initGame
+  , initGameWithWord
+  , firstGuess
+  , doGuess )
 import           Hordle.Types
-import           Hordle.Dict
+  ( Game
+  , numAttempts
+  , success
+  , word
+  , done )
+import           Hordle.Dict (targets)
 import qualified Hordle.Solver.Internal as HSI
 import qualified Hordle.Solver.LookAhead as LA
 
@@ -38,7 +47,6 @@ solveWithWord h w = solveTurn (firstGuess $ initGameWithWord w) h
 -- | Allow the LookAhead solver to take guesses until the game is over.
 solveTurn :: Game -> Handle -> IO Game
 solveTurn g h = do
-  -- drawGrid g
   if g ^. done
     then do let t = "WORD: "<>g ^. word<>", SUCCESS: "<>T.pack (show $ g ^. success)<>", GUESSES: "<>T.pack (show (g ^. numAttempts))
             TIO.hPutStrLn h t

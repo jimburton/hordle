@@ -1,5 +1,16 @@
 {-# LANGUAGE TemplateHaskell #-}
-module Hordle.Types where
+module Hordle.Types
+  ( CharInfo(..)
+  , ScoredWord
+  , Game(..)
+  , word
+  , numAttempts
+  , attempts
+  , info
+  , guess
+  , done
+  , success
+  , blacklist ) where
 
 import Lens.Micro.TH (makeLenses)
 import Data.Set (Set)

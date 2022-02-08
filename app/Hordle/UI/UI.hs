@@ -17,9 +17,16 @@ import           Data.List (intercalate)
 import           Lens.Micro ((^.))
 import           System.Console.Haskeline
 import           Control.Monad.IO.Class (liftIO)
-import           Hordle.Hordle
+import           Hordle.Hordle (doGuess, emptyGame)
 import           Hordle.Types
-import           Hordle.Dict
+  ( Game
+  , word
+  , attempts
+  , numAttempts
+  , done
+  , success
+  , CharInfo(..))
+import           Hordle.Dict (isDictWord)
 import qualified Hordle.Solver.Solve as HS
 import qualified Hordle.Solver.Internal as HSI
 

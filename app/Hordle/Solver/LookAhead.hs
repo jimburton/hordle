@@ -7,8 +7,8 @@ import qualified Data.Vector as V
 import           Data.Maybe (listToMaybe)
 import           Data.List (sortBy)
 import           Data.Functor ((<&>))
-import           Hordle.Hordle
-import           Hordle.Types
+import           Hordle.Hordle (doGuess)
+import           Hordle.Types (Game)
 import qualified Hordle.Solver.Internal as HSI
 
 -- | Get a hint by looking ahead based on the constraints.

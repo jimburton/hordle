@@ -13,7 +13,14 @@ import qualified Data.Set as S
 import qualified Data.Vector as V
 import qualified Hordle.Hordle as H
 import           Hordle.Types
-import           Hordle.Solver.Internal
+  ( Game
+  , attempts
+  , numAttempts
+  , guess
+  , info
+  , blacklist
+  , CharInfo(..))
+import           Hordle.Solver.Internal (hints)
 
 -- | 
 processInfo :: Text -> Text -> Game -> Game

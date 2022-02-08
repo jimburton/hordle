@@ -1,4 +1,8 @@
-module Hordle.Dict where
+module Hordle.Dict
+  ( dict
+  , targets
+  , getTarget
+  , isDictWord ) where
 
 import           Data.Vector (Vector)
 import qualified Data.Vector as V

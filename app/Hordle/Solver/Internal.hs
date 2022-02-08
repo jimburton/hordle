@@ -9,9 +9,15 @@ import           Data.Text (Text)
 import qualified Data.Text as T
 import           Data.List (foldl')
 import           Data.Maybe (fromJust)
-import           Hordle.Hordle
+import           Hordle.Hordle (endGame, isGreen)
 import           Hordle.Types
-import           Hordle.Dict
+  ( Game
+  , guess
+  , blacklist
+  , attempts
+  , info
+  , CharInfo(..))
+import           Hordle.Dict (dict)
 
 -- | Get all hints based on the constraints. 
 hints :: Game -> IO (Vector Text)

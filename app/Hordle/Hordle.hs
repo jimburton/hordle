@@ -1,5 +1,15 @@
-{-# LANGUAGE OverloadedStrings, TemplateHaskell #-}
-module Hordle.Hordle where
+{-# LANGUAGE OverloadedStrings #-}
+module Hordle.Hordle
+  ( endGame
+  , doGuess
+  , isGreen
+  , score
+  , updateMapWithAttempt
+  , mapAttempt
+  , emptyGame
+  , initGame
+  , initGameWithWord
+  , firstGuess ) where
 
 import           Data.Text (Text)
 import qualified Data.Text as T
@@ -10,8 +20,16 @@ import           Data.List (foldl')
 import           Data.Functor ((<&>))
 import           Lens.Micro ((&), (.~), (%~), (^.), (?~))
 import           Hordle.Types
-import           Hordle.Dict
---import qualified Hordle.Solver.LookAhead as LA
+  (Game(..)
+  , success
+  , attempts
+  , numAttempts
+  , info
+  , word
+  , guess
+  , CharInfo(..)
+  , ScoredWord)
+import           Hordle.Dict (getTarget)
 
 -- | Set the booleans that determine whether the game is over.
 endGame :: Game -> Game

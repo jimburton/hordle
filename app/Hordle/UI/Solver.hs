@@ -8,7 +8,7 @@ import qualified Data.Text.IO as TIO
 import           Hordle.UI.UI
 import           Hordle.Hordle
 import           Hordle.Types
-import           Hordle.Solver.Solve
+import           Hordle.Solver.Solve (hint, processInfo)
 import qualified Hordle.Solver.Internal as HSI
 
 -- | 

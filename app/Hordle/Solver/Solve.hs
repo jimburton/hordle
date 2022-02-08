@@ -13,7 +13,7 @@ import           Data.Set (Set)
 import qualified Data.Set as S
 import           Data.Vector (Vector)
 import qualified Data.Vector as V
-import           Hordle.Hordle
+import qualified Hordle.Hordle as H
 import           Hordle.Types
 import           Hordle.Solver.Internal
 import qualified Hordle.Solver.LookAhead as LA
@@ -21,8 +21,8 @@ import qualified Hordle.Solver.LookAhead as LA
 -- | 
 processInfo :: Text -> Text -> Game -> Game
 processInfo guess target g =
-  let sc = LA.score guess target in
-    mapAttempt g sc & numAttempts %~ (+1)
+  let sc = H.score guess target in
+    H.mapAttempt g sc & numAttempts %~ (+1)
                     & blacklist %~ (guess:)
 
 -- | 
@@ -40,19 +40,15 @@ score attempt infoMap =
 hint :: Game -> IO (Maybe Text)
 hint g = do
   hs <- hints g
-  let possibleGames = V.map (\t -> (t, doGuess g t)) hs
+  let possibleGames = V.map (\t -> (t, doGuessBlind g t)) hs
   reds' <- mapM (\(t,g') -> hints g' <&> (t,) . length) possibleGames
   let res = sortBy (\(_,l1) (_,l2) -> l1 `compare` l2) $ V.toList reds'
   pure $ fst <$> listToMaybe res
 
--- | Apply the fixed first word for automated games.
-firstGuess :: Game -> Game
-firstGuess = flip doGuess firstWord
-
-doGuess :: Game -> Text -> Game
-doGuess g attempt =
+doGuessBlind :: Game -> Text -> Game
+doGuessBlind g attempt =
   let a = score attempt (g ^. info) in
-    endGame $ mapAttempt g a
+    H.endGame $ g & info %~ H.updateMapWithAttempt a
       & attempts %~ (a:)
       & numAttempts %~ (+1)
       & guess    ?~ attempt

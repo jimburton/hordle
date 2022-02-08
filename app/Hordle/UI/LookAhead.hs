@@ -32,11 +32,11 @@ import qualified Hordle.Solver.LookAhead as LA
 solve :: Handle -> IO Game
 solve h = do
   g <- initGame
-  solveTurn (LA.firstGuess g) h
+  solveTurn (firstGuess g) h
 
 -- | Start a game with a given word and a solver.
 solveWithWord :: Handle -> Text -> IO Game
-solveWithWord h w = solveTurn (LA.firstGuess $ initGameWithWord w) h
+solveWithWord h w = solveTurn (firstGuess $ initGameWithWord w) h
 
 -- | Allow the LookAhead solver to take guesses until the game is over.
 solveTurn :: Game -> Handle -> IO Game
@@ -51,7 +51,7 @@ solveTurn g h = do
     ht <- LA.hint g
     case ht of
       Nothing  -> solveTurn (HSI.backtrack g) h
-      (Just t) -> solveTurn (LA.doGuess g t) h
+      (Just t) -> solveTurn (doGuess g t) h
 
 -- | Run the solver against all words.
 solveAll :: IO ()

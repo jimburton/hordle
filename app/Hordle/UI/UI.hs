@@ -54,7 +54,7 @@ playGame g = runInputT defaultSettings loop
                          TIO.putStrLn "Not a word from the dictionary"
                          playGame g
                        else liftIO $ do
-                         let g' = HS.doGuess g attempt
+                         let g' = doGuess g attempt
                          drawGrid g'
                          playGame g'
 

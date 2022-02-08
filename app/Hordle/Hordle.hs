@@ -12,6 +12,7 @@ import           Data.Functor ((<&>))
 import           Lens.Micro ((&), (.~), (%~), (^.), (?~))
 import           Hordle.Types
 import           Hordle.Dict
+--import qualified Hordle.Solver.LookAhead as LA
 
 -- | Set the booleans that determine whether the game is over.
 endGame :: Game -> Game
@@ -51,6 +52,31 @@ mapAttempt g a = g & info %~ updateMapWithAttempt a
 -- | Best starting word? 
 firstWord :: Text
 firstWord = "SOARE"
+
+doGuess :: Game -> Text -> Game
+doGuess g attempt =
+  let w = g ^. word
+      a = score attempt w in
+    endGame $ mapAttempt g a
+      & attempts %~ (a:)
+      & numAttempts %~ (+1)
+      & guess    ?~ attempt
+
+-- | Set the status of each char in a guess.
+score :: Text  -- ^ The attempt.
+      -> Text  -- ^ The target word.
+      -> ScoredWord -- ^ The scored attempt.
+score attempt target = 
+  zipWith (\(c,d) i -> if c==d 
+                       then (c, Green (S.singleton i))
+                       else if T.elem c target
+                            then (c, Yellow (S.singleton i))
+                            else (c, Black)) (T.zip attempt target) [0..]
+
+
+-- | Apply the fixed first word for automated games.
+firstGuess :: Game -> Game
+firstGuess = flip doGuess firstWord
 
 -- * Constructing games
 

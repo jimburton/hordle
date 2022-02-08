@@ -8,7 +8,11 @@ Portability : POSIX
 CLI for playing Hordle.
 -}
 {-# LANGUAGE OverloadedStrings #-}
-module Hordle.UI.UI where
+module Hordle.UI.UI
+  ( playGame
+  , logEntry
+  , helpText
+  , feedbackGame ) where
 
 import           Data.Text (Text)
 import qualified Data.Text as T
@@ -108,11 +112,7 @@ helpText = "\ESC[32mchar in right place.\ESC[0m\n"
 
 -- * Hints.
 
--- | Suggest some words based on the state of the game.
-showHints :: Game -> IO ()
-showHints g = HSI.hints g >>= mapM_ TIO.putStrLn
-
--- | Suggest a single word based on the state of the game.
+-- | Suggest a word based on the state of the game.
 showHint :: Game -> IO ()
 showHint g = HS.hint g >>= mapM_ TIO.putStrLn
 
@@ -153,3 +153,6 @@ feedbackTurn g = runInputT defaultSettings loop
                      TIO.putStrLn "Try again."
                      feedbackTurn g
 
+-- | Format a log entry.
+logEntry :: Game -> Text
+logEntry g = "WORD: "<> g ^. word<>", SUCCESS: "<>T.pack (show $ g ^. success)<>", GUESSES: "<>T.pack (show (g ^. numAttempts))

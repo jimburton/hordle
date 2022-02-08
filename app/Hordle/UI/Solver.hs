@@ -33,6 +33,7 @@ import           Hordle.Types
 import           Hordle.Dict (targets, getTarget)
 import           Hordle.Solver.Solve (hint)
 import qualified Hordle.Solver.Internal as HSI
+import           Hordle.UI.UI (logEntry)
 
 -- | Play an automated game with the real solver.
 solve :: Handle -> IO Game
@@ -70,10 +71,6 @@ setDone :: Game -- ^ The testbed game
 setDone g t = g & word .~ t
                 & success .~ (g ^. numAttempts < 7)
                 & done .~ True
-
--- | Format a log entry.
-logEntry :: Game -> Text
-logEntry g = "WORD: "<> g ^. word<>", SUCCESS: "<>T.pack (show $ g ^. success)<>", GUESSES: "<>T.pack (show (g ^. numAttempts))
   
 -- | Start a game with a given word and a solver.
 solveWithWord :: Handle -> Text -> IO Game

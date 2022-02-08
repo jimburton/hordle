@@ -25,13 +25,11 @@ import           Hordle.Hordle
   , doGuess )
 import           Hordle.Types
   ( Game
-  , numAttempts
-  , success
-  , word
   , done )
 import           Hordle.Dict (targets)
 import qualified Hordle.Solver.Internal as HSI
 import qualified Hordle.Solver.LookAhead as LA
+import           Hordle.UI.UI (logEntry)
 
 -- * Playing the game.
 
@@ -50,8 +48,7 @@ solveWithWord h w = solveTurn (firstGuess $ initGameWithWord w) h
 solveTurn :: Game -> Handle -> IO Game
 solveTurn g h = do
   if g ^. done
-    then do let t = "WORD: "<>g ^. word<>", SUCCESS: "<>T.pack (show $ g ^. success)<>", GUESSES: "<>T.pack (show (g ^. numAttempts))
-            TIO.hPutStrLn h t
+    then do TIO.hPutStrLn h (logEntry g)
             hFlush h
             pure g
     else do

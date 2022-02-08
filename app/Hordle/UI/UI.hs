@@ -1,51 +1,27 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-|
-Module      : Hordle.Game
-Description : Functions for playing a game of Hordle.
+Module      : Hordle.UI
+Description : CLI for playing Hordle.
 Maintainer  : j.burton@brighton.ac.uk
 Stability   : experimental
 Portability : POSIX
 
-Functions for playing a game of Hordle.
+CLI for playing Hordle.
 -}
-module Hordle.Game (playGame
-                   , solve
-                   , solveWithWord
-                   , feedbackGame
-                   , solveAll
-                   , showHints
-                   , showHint
-                   ) where
+{-# LANGUAGE OverloadedStrings #-}
+module Hordle.UI.UI where
 
-import           Lens.Micro ((^.))
-import           Control.Monad.IO.Class (liftIO)
-import qualified Data.Text.IO as TIO
 import           Data.Text (Text)
 import qualified Data.Text as T
-import           Data.Time (getCurrentTime) 
-import           System.IO
+import qualified Data.Text.IO as TIO
+import           Data.List (intercalate)
+import           Lens.Micro ((^.))
 import           System.Console.Haskeline
-import           Data.Functor (($>))
+import           Control.Monad.IO.Class (liftIO)
 import           Hordle.Hordle
-  (Game
-  , done
-  , attempts
-  , numAttempts
-  , word
-  , success
-  , initGame
-  , initGameWithWord
-  , emptyGame
-  , doGuess
-  , hints
-  , hint
-  , isDictWord
-  , backtrack
-  , targets
-  , processInfo )
-import           Hordle.UI (drawGrid, gameOver)
-
--- * Playing the game.
+import           Hordle.Types
+import           Hordle.Dict
+import qualified Hordle.Solver.Solve as HS
+import qualified Hordle.Solver.Internal as HSI
 
 -- | Play the game by querying the user for words until they guess the word or have
 -- | used their six guesses.
@@ -78,53 +54,55 @@ playGame g = runInputT defaultSettings loop
                          TIO.putStrLn "Not a word from the dictionary"
                          playGame g
                        else liftIO $ do
-                         let g' = doGuess g attempt
+                         let g' = HS.doGuess g attempt
                          drawGrid g'
                          playGame g'
 
--- | Best starting word? 
-firstWord :: Text
-firstWord = "SOARE"
+-- | Print a message when the game is over.
+gameOver :: Game -> IO ()
+gameOver g = if g ^. success
+             then TIO.putStrLn "Well done!"
+             else TIO.putStrLn $ "Hard luck! The word was " <> (g ^. word)
 
--- | Apply the fixed first word for automated games.
-firstGuess :: Game -> Game
-firstGuess = flip doGuess firstWord
+-- | Draw the game grid.
+drawGrid :: Game -> IO ()
+drawGrid g = do
+  let as = reverse $ g ^. attempts
+  TIO.putStrLn hline
+  drawLines as 0
+  where hline  = "+-------------------+"
+        iline  = "|   |   |   |   |   |"
+        line a = T.pack $ "|" <> intercalate "|"
+          (map (\(c,i) -> " "<>colour i<>[c]<>def<>" ") a) <> "|"
+        colour (Green _)  = green
+        colour Black      = red
+        colour (Yellow _) = yellow
+        drawLines _  6 = pure ()
+        drawLines as n = do if n < length as
+                              then TIO.putStrLn $ line (as!!n)
+                              else TIO.putStrLn iline
+                            TIO.putStrLn hline 
+                            drawLines as (n+1)
+        red    = "\ESC[31m"
+        green  = "\ESC[32m"
+        yellow = "\ESC[33m"
+        def    = "\ESC[0m"
 
--- | Start a game with a random target and a solver.
-solve :: Handle -> IO Game
-solve h = do
-  g <- initGame
-  solveTurn (firstGuess g) h
+-- | Explain the colours to the user.
+helpText :: Text
+helpText = "\ESC[32mchar in right place.\ESC[0m\n"
+           <> "\ESC[33mchar in word but wrong place.\ESC[0m\n"
+           <> "\ESC[31mchar not in word.\ESC[0m"
 
--- | Start a game with a given word and a solver.
-solveWithWord :: Handle -> Text -> IO Game
-solveWithWord h w = solveTurn (firstGuess $ initGameWithWord w) h
+-- * Hints.
 
--- | Allow the AI solver to take guesses until the game is over.
-solveTurn :: Game -> Handle -> IO Game
-solveTurn g h = do
-  -- drawGrid g
-  if g ^. done
-    then do let t = "WORD: "<>g ^. word<>", SUCCESS: "<>T.pack (show $ g ^. success)<>", GUESSES: "<>T.pack (show (g ^. numAttempts))
-            TIO.hPutStrLn h t
-            hFlush h
-            pure g
-    else do
-    ht <- hint g
-    case ht of
-      Nothing  -> solveTurn (backtrack g) h
-      (Just t) -> solveTurn (doGuess g t) h
+-- | Suggest some words based on the state of the game.
+showHints :: Game -> IO ()
+showHints g = HSI.hints g >>= mapM_ TIO.putStrLn
 
--- | Run the solver against all words.
-solveAll :: IO ()
-solveAll = do
-  h <- openFile "etc/solver.log" WriteMode
-  begin <- getCurrentTime
-  TIO.hPutStrLn h (T.pack $ show begin)
-  targets >>= mapM_ (solveWithWord h)
-  end <- getCurrentTime
-  TIO.hPutStrLn h (T.pack $ show end)
-  hClose h
+-- | Suggest a single word based on the state of the game.
+showHint :: Game -> IO ()
+showHint g = HS.hint g >>= mapM_ TIO.putStrLn
 
 -- | Play a game while entering the scores manually.
 feedbackGame :: IO ()
@@ -147,25 +125,17 @@ feedbackTurn g = runInputT defaultSettings loop
                      then liftIO $ do
                      let guess = head ws
                          score = ws !! 1
-                         g'    = processInfo guess score g
+                         g'    = HS.processInfo guess score g
                      if score == "GGGGG"
                        then TIO.putStrLn $ "Done in "<>T.pack (show $ g' ^. numAttempts)<>" attempts."
                        else do
-                       h <- hint g'
+                       h <- HS.hint g'
                        case h of
-                         Nothing  -> TIO.putStrLn "No suggestions, sorry."
+                         Nothing  -> do TIO.putStrLn "Backtracking."
+                                        feedbackTurn (HSI.backtrack g')
                          (Just t) -> do TIO.putStrLn ("Try "<>t)
                                         feedbackTurn g'
                      else liftIO $ do
                      TIO.putStrLn "Try again."
                      feedbackTurn g
-                     
--- * Hints.
 
--- | Suggest some words based on the state of the game.
-showHints :: Game -> IO ()
-showHints g = hints g >>= mapM_ TIO.putStrLn
-
--- | Suggest a single word based on the state of the game.
-showHint :: Game -> IO ()
-showHint g = hint g >>= mapM_ TIO.putStrLn

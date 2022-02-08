@@ -44,7 +44,6 @@ executable hordle
                     , containers
                     , microlens
                     , microlens-th
-                    , brick
                     , vty
                     , haskeline
                     , vector

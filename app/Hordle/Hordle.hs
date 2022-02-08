@@ -3,11 +3,10 @@ module Hordle.Hordle where
 
 import           Data.Text (Text)
 import qualified Data.Text as T
-import           Data.Set (Set)
 import qualified Data.Set as S
 import           Data.Map (Map)
 import qualified Data.Map as M
-import           Data.List (sortBy, foldl')
+import           Data.List (foldl')
 import           Data.Functor ((<&>))
 import           Lens.Micro ((&), (.~), (%~), (^.), (?~))
 import           Hordle.Types

@@ -3,14 +3,10 @@ module Hordle.Solver.LookAhead
   where
 
 import           Data.Text (Text)
-import qualified Data.Text as T
-import           Data.Set (Set)
-import qualified Data.Set as S
 import qualified Data.Vector as V
-import           Data.Maybe (fromJust, listToMaybe, catMaybes)
-import           Data.List (sortBy, foldl')
+import           Data.Maybe (listToMaybe)
+import           Data.List (sortBy)
 import           Data.Functor ((<&>))
-import           Lens.Micro ((&), (.~), (%~), (^.), (?~))
 import           Hordle.Hordle
 import           Hordle.Types
 import qualified Hordle.Solver.Internal as HSI

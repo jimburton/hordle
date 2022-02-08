@@ -10,15 +10,12 @@ Functions for playing a game of Hordle.
 -}
 module Hordle.UI.LookAhead where
 
-import           Lens.Micro ((&),(^.),(.~))
-import           Control.Monad.IO.Class (liftIO)
+import           Lens.Micro ((^.))
 import qualified Data.Text.IO as TIO
 import           Data.Text (Text)
 import qualified Data.Text as T
 import           Data.Time (getCurrentTime) 
 import           System.IO
-import           System.Console.Haskeline
-import           Data.Functor (($>))
 import           Hordle.Hordle
 import           Hordle.Types
 import           Hordle.Dict

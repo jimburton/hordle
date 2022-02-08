@@ -1,15 +1,14 @@
 module Hordle.Solver.Internal where
 
-import           Lens.Micro ((&), (.~), (%~), (^.), (?~))
+import           Lens.Micro ((&), (.~), (%~), (^.))
 import           Data.Vector (Vector)
 import qualified Data.Vector as V
-import           Data.Map (Map)
 import qualified Data.Map as M
 import qualified Data.Set as S
 import           Data.Text (Text)
 import qualified Data.Text as T
-import           Data.List (sortBy, foldl')
-import           Data.Maybe (fromJust, listToMaybe, catMaybes)
+import           Data.List (foldl')
+import           Data.Maybe (fromJust)
 import           Hordle.Hordle
 import           Hordle.Types
 import           Hordle.Dict

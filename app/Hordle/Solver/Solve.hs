@@ -1,29 +1,26 @@
 {-# LANGUAGE OverloadedStrings, TupleSections #-}
 module Hordle.Solver.Solve where
 
-import           Lens.Micro ((&), (.~), (%~), (^.), (?~))
-import           Data.Maybe (fromJust, listToMaybe, catMaybes)
+import           Lens.Micro ((&), (%~), (^.), (?~))
+import           Data.Maybe (listToMaybe, catMaybes)
 import           Data.Functor ((<&>))
-import           Data.List (sortBy, foldl')
+import           Data.List (sortBy)
 import           Data.Text (Text)
 import qualified Data.Text as T
 import           Data.Map (Map)
 import qualified Data.Map as M
-import           Data.Set (Set)
 import qualified Data.Set as S
-import           Data.Vector (Vector)
 import qualified Data.Vector as V
 import qualified Hordle.Hordle as H
 import           Hordle.Types
 import           Hordle.Solver.Internal
-import qualified Hordle.Solver.LookAhead as LA
 
 -- | 
 processInfo :: Text -> Text -> Game -> Game
-processInfo guess target g =
-  let sc = H.score guess target in
+processInfo attempt target g =
+  let sc = H.score attempt target in
     H.mapAttempt g sc & numAttempts %~ (+1)
-                    & blacklist %~ (guess:)
+                    & blacklist %~ (attempt:)
 
 -- | 
 score :: Text  -- ^ The attempt.

@@ -123,10 +123,10 @@ feedbackTurn g = runInputT defaultSettings loop
                    let ws = T.words $ T.toUpper $ T.pack wdStr
                    if length ws == 2
                      then liftIO $ do
-                     let guess = head ws
-                         score = ws !! 1
-                         g'    = HS.processInfo guess score g
-                     if score == "GGGGG"
+                     let attempt = head ws
+                         sc      = ws !! 1
+                         g'      = HS.processInfo attempt sc g
+                     if sc == "GGGGG"
                        then TIO.putStrLn $ "Done in "<>T.pack (show $ g' ^. numAttempts)<>" attempts."
                        else do
                        h <- HS.hint g'

@@ -9,7 +9,8 @@ module Hordle.Hordle
   , emptyGame
   , initGame
   , initGameWithWord
-  , firstGuess ) where
+  , firstGuess
+  , processInfo ) where
 
 import           Data.Text (Text)
 import qualified Data.Text as T
@@ -27,6 +28,7 @@ import           Hordle.Types
   , info
   , word
   , guess
+  , blacklist
   , CharInfo(..)
   , ScoredWord)
 import           Hordle.Dict (getTarget)
@@ -65,6 +67,13 @@ updateMapWithAttempt a m =
 -- | Update the info map in a game with an attempt.
 mapAttempt :: Game -> ScoredWord -> Game
 mapAttempt g a = g & info %~ updateMapWithAttempt a
+
+-- | Update the info map with a guess scored against the target word.
+processInfo :: Text -> Text -> Game -> Game
+processInfo attempt target g =
+  let sc = score attempt target in
+    mapAttempt g sc & numAttempts %~ (+1)
+                    & blacklist %~ (attempt:)
 
 -- | Best starting word? 
 firstWord :: Text

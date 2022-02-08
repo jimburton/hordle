@@ -1,3 +1,12 @@
+{-|
+Module      : Hordle.Solver.Internal
+Description : Functions common to the solvers.
+Maintainer  : j.burton@brighton.ac.uk
+Stability   : experimental
+Portability : POSIX
+
+Functions common to the solvers.
+-}
 module Hordle.Solver.Internal where
 
 import           Lens.Micro ((&), (.~), (%~), (^.))
@@ -37,7 +46,7 @@ findWords inf bl =
                           (Yellow os) -> T.elem c t && fromJust (T.findIndex (==c) t) `S.notMember` os
                           Black       -> not $ c `T.elem` t) inf)
 
--- | Take a step backward in the game.
+-- | Take a step backwards in the game.
 backtrack :: Game -> Game
 backtrack g =
   case g ^. guess of

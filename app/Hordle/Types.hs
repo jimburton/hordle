@@ -1,4 +1,13 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-|
+Module      : Hordle.Types
+Description : Types for Hordle.
+Maintainer  : j.burton@brighton.ac.uk
+Stability   : experimental
+Portability : POSIX
+
+Types for Hordle.
+-}
 module Hordle.Types
   ( CharInfo(..)
   , ScoredWord
@@ -29,7 +38,7 @@ type ScoredWord = [(Char, CharInfo)]
 data Game = Game
   { _word     :: Text              -- ^ The word to guess.
   , _numAttempts :: Int            -- ^ The number of attempts.
-  , _attempts :: [ScoredWord]           -- ^ Previous attempts.
+  , _attempts :: [ScoredWord]      -- ^ Previous attempts.
   , _info     :: Map Char CharInfo -- ^ Info on previous guesses.
   , _guess    :: Maybe Text        -- ^ The latest guess.
   , _done     :: Bool              -- ^ game over flag.

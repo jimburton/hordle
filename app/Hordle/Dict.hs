@@ -1,3 +1,15 @@
+{-|
+Module      : Hordle.Dict
+Description : Dictionaries.
+Maintainer  : j.burton@brighton.ac.uk
+Stability   : experimental
+Portability : POSIX
+
+Dictionaries for the Hordle game. Matching the original game, there are two -- a short
+one, @targets@, which contains 2300 words which may be the secret word in a game, and a
+longer one, @dict@, which is a superset of @targets. It contains 12K words from which
+guesses must be chosen.
+-}
 module Hordle.Dict
   ( dict
   , targets

@@ -1,6 +1,6 @@
 {-|
 Module      : Hordle.UI
-Description : CLI for playing Hordle.
+Description : Frontend for playing Hordle.
 Maintainer  : j.burton@brighton.ac.uk
 Stability   : experimental
 Portability : POSIX
@@ -17,7 +17,10 @@ import           Data.List (intercalate)
 import           Lens.Micro ((^.))
 import           System.Console.Haskeline
 import           Control.Monad.IO.Class (liftIO)
-import           Hordle.Hordle (doGuess, emptyGame)
+import           Hordle.Hordle
+  ( doGuess
+  , emptyGame
+  , processInfo )
 import           Hordle.Types
   ( Game
   , word
@@ -29,6 +32,8 @@ import           Hordle.Types
 import           Hordle.Dict (isDictWord)
 import qualified Hordle.Solver.Solve as HS
 import qualified Hordle.Solver.Internal as HSI
+
+-- * CLI functions.
 
 -- | Play the game by querying the user for words until they guess the word or have
 -- | used their six guesses.
@@ -111,6 +116,8 @@ showHints g = HSI.hints g >>= mapM_ TIO.putStrLn
 showHint :: Game -> IO ()
 showHint g = HS.hint g >>= mapM_ TIO.putStrLn
 
+-- * Feedback game.
+
 -- | Play a game while entering the scores manually.
 feedbackGame :: IO ()
 feedbackGame = feedbackTurn emptyGame
@@ -132,7 +139,7 @@ feedbackTurn g = runInputT defaultSettings loop
                      then liftIO $ do
                      let attempt = head ws
                          sc      = ws !! 1
-                         g'      = HS.processInfo attempt sc g
+                         g'      = processInfo attempt sc g
                      if sc == "GGGGG"
                        then TIO.putStrLn $ "Done in "<>T.pack (show $ g' ^. numAttempts)<>" attempts."
                        else do

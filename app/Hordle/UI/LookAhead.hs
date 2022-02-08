@@ -1,12 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-|
-Module      : Hordle.Game
-Description : Functions for playing a game of Hordle.
+Module      : Hordle.UI.LookAhead
+Description : Frontend for the LookAhead solver.
 Maintainer  : j.burton@brighton.ac.uk
 Stability   : experimental
 Portability : POSIX
 
-Functions for playing a game of Hordle.
+Frontend for the LookAhead solver. This solver cheats, as it evaluates possible guesses
+by making them and seeing how "good" they were, i.e. how few subsequent possible words
+did they yield. As a result it may submit many more than 6 guesses.
 -}
 module Hordle.UI.LookAhead where
 

@@ -1,5 +1,20 @@
 {-# LANGUAGE OverloadedStrings, TupleSections #-}
-module Hordle.Solver.Solve where
+{-|
+Module      : Hordle.Solver.Solve
+Description : Solver for Hordle word games.
+Maintainer  : j.burton@brighton.ac.uk
+Stability   : experimental
+Portability : POSIX
+
+The solver uses a greedy, backtracking minimax algorithm. It maintains
+a "testbed" game with no knowledge of the secret word but whose info
+map is kept in sync with that of the real game. Candidate words are
+submitted as guesses to the testbed game, then one which yields the
+fewest subsequent possibilities is chosen.
+-}
+module Hordle.Solver.Solve
+  ( score
+  , hint ) where
 
 import           Lens.Micro ((&), (%~), (^.), (?~))
 import           Data.Maybe (listToMaybe, catMaybes)
@@ -18,18 +33,10 @@ import           Hordle.Types
   , numAttempts
   , guess
   , info
-  , blacklist
   , CharInfo(..))
 import           Hordle.Solver.Internal (hints)
 
--- | 
-processInfo :: Text -> Text -> Game -> Game
-processInfo attempt target g =
-  let sc = H.score attempt target in
-    H.mapAttempt g sc & numAttempts %~ (+1)
-                    & blacklist %~ (attempt:)
-
--- | 
+-- | Score an attempt against the map, in absence of the secret word.
 score :: Text  -- ^ The attempt.
       -> Map Char CharInfo  -- ^ The current knowledge.
       -> [(Char, CharInfo)] -- ^ The scored attempt, just those chars that appear in the map.
@@ -40,7 +47,8 @@ score attempt infoMap =
                           (Just Black)       -> Just (c,Black)
                           Nothing -> Nothing) (T.unpack attempt) [0..]
 
--- | 
+-- | Get a hint from the testbed game. This differs from the LookAhead hint function
+-- in that it uses @doGuessBlind@ rather than @doGuess@ to pick the best hint.
 hint :: Game -> IO (Maybe Text)
 hint g = do
   hs <- hints g
@@ -49,7 +57,11 @@ hint g = do
   let res = sortBy (\(_,l1) (_,l2) -> l1 `compare` l2) $ V.toList reds'
   pure $ fst <$> listToMaybe res
 
-doGuessBlind :: Game -> Text -> Game
+-- | Take a guess against the testbed game. Because the testbed game does not
+-- have a copy of the secret word, the feedback provided is less informative. 
+doGuessBlind :: Game -- ^ The testbed game.
+             -> Text -- ^ The word to guess.
+             -> Game
 doGuessBlind g attempt =
   let a = score attempt (g ^. info) in
     H.endGame $ g & info %~ H.updateMapWithAttempt a

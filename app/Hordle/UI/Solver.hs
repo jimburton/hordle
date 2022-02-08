@@ -1,4 +1,17 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-|
+Module      : Hordle.UI.Solver
+Description : Frontend for the solver.
+Maintainer  : j.burton@brighton.ac.uk
+Stability   : experimental
+Portability : POSIX
+
+Frontend for the solver. The solver uses a greedy, backtracking minimax
+algorithm. It maintains a "testbed" game with no knowledge of the secret word
+but whose info map is kept in sync with that of the real game. Candidate words
+are submitted as guesses to the testbed game, then one which yields the fewest
+subsequent possibilities is chosen.
+-}
 module Hordle.UI.Solver where
 
 import           System.IO
@@ -7,7 +20,10 @@ import           Data.Time (getCurrentTime)
 import           Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
-import           Hordle.Hordle (initGameWithWord, firstGuess)
+import           Hordle.Hordle
+  ( initGameWithWord
+  , firstGuess
+  , processInfo )
 import           Hordle.Types
   ( Game
   , word
@@ -15,15 +31,19 @@ import           Hordle.Types
   , done
   , success )
 import           Hordle.Dict (targets, getTarget)
-import           Hordle.Solver.Solve (hint, processInfo)
+import           Hordle.Solver.Solve (hint)
 import qualified Hordle.Solver.Internal as HSI
 
--- | 
+-- | Play an automated game with the real solver.
 solve :: Handle -> IO Game
 solve h = getTarget >>= solveWithWord h
 
--- | 
-solveTurn :: Handle -> (Game, Game) -> IO Game
+-- | Take a turn in an automated game with the real solver.
+solveTurn :: Handle
+          -> (Game, Game) -- ^ A pair of the "real" game with the secret word and a game which
+                          -- acts as a testbed. The info map in the testbed is updated with
+                          -- results from the real game whenever guesses are submitted. 
+          -> IO Game
 solveTurn h (rg,pg) =
   if pg ^. done
   then do let pg' = setDone pg (rg ^. word)
@@ -43,11 +63,15 @@ solveTurn h (rg,pg) =
                              else do let pg' = processInfo t (rg ^. word) pg 
                                      solveTurn h (rg,pg')
 
-setDone :: Game -> Text -> Game
+-- | Set the fields of a solved testbed game which is done.
+setDone :: Game -- ^ The testbed game
+        -> Text -- ^ The secret word it was trying to guess
+        -> Game
 setDone g t = g & word .~ t
                 & success .~ (g ^. numAttempts < 7)
                 & done .~ True
-  
+
+-- | Format a log entry.
 logEntry :: Game -> Text
 logEntry g = "WORD: "<> g ^. word<>", SUCCESS: "<>T.pack (show $ g ^. success)<>", GUESSES: "<>T.pack (show (g ^. numAttempts))
   

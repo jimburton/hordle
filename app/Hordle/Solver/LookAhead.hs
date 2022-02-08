@@ -1,4 +1,16 @@
 {-# LANGUAGE TupleSections #-}
+{-|
+Module      : Hordle.Solver.LookAhead
+Description : The LookAhead solver.
+Maintainer  : j.burton@brighton.ac.uk
+Stability   : experimental
+Portability : POSIX
+
+The LookAhead solver. Because this solver tests every candidate word against the
+actual game, it takes many more than 6 guesses to solve every word and isn't really
+a solver.
+-}
+
 module Hordle.Solver.LookAhead
   where
 

@@ -91,10 +91,10 @@ firstGuess :: Game -> Game
 firstGuess = flip doGuess firstWord
 
 -- | Start a game with a random target and a solver.
-solve :: Handle -> IO ()
+solve :: Handle -> IO Game
 solve h = do
   g <- initGame
-  solveTurn (firstGuess g) h $> ()
+  solveTurn (firstGuess g) h
 
 -- | Start a game with a given word and a solver.
 solveWithWord :: Handle -> Text -> IO Game

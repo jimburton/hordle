@@ -17,6 +17,7 @@ cabal.project.local
 *.prof
 *.aux
 *.hp
+*.log
 TAGS/
 TAGS
 **#*

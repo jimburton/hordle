@@ -20,11 +20,16 @@ import qualified Data.Text.IO as TIO
 import           Data.List (intercalate)
 import           Lens.Micro ((^.))
 import           System.Console.Haskeline
+import           Data.Time (getCurrentTime) 
+import           System.IO
 import           Control.Monad.IO.Class (liftIO)
 import           Hordle.Hordle
   ( doGuess
   , emptyGame
-  , processInfo )
+  , processInfo
+  , firstGuess
+  , initGame
+  , initGameWithWord )
 import           Hordle.Types
   ( Game
   , word
@@ -33,8 +38,9 @@ import           Hordle.Types
   , done
   , success
   , CharInfo(..))
-import           Hordle.Dict (isDictWord)
+import           Hordle.Dict (targets, isDictWord)
 import qualified Hordle.Solver.Solve as HS
+import qualified Hordle.Solver.LookAhead as LA
 import qualified Hordle.Solver.Internal as HSI
 
 -- * CLI functions.

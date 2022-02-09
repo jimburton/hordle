@@ -14,7 +14,8 @@ fewest subsequent possibilities is chosen.
 -}
 module Hordle.Solver.Solve
   ( score
-  , hint ) where
+  , hint
+  , doGuessBlind ) where
 
 import           Lens.Micro ((&), (%~), (^.), (?~))
 import           Data.Maybe (listToMaybe, catMaybes)
@@ -33,6 +34,7 @@ import           Hordle.Types
   , numAttempts
   , guess
   , info
+  , blacklist
   , CharInfo(..))
 import           Hordle.Solver.Internal (hints)
 
@@ -68,3 +70,4 @@ doGuessBlind g attempt =
       & attempts %~ (a:)
       & numAttempts %~ (+1)
       & guess    ?~ attempt
+      & blacklist %~ (attempt:)

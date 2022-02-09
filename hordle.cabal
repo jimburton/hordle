@@ -25,15 +25,14 @@ executable hordle
     main-is:          Main.hs
 
     -- Modules included in this executable, other than Main.
-    other-modules:  Hordle.UI.Solver
-                  , Hordle.UI.LookAhead
-                  , Hordle.Dict
-                  , Hordle.Hordle
-                  , Hordle.Solver.Internal
-                  , Hordle.Solver.LookAhead
-                  , Hordle.Solver.Solve
-                  , Hordle.Types
-                  , Hordle.UI.UI
+    other-modules: Hordle.Hordle
+                 , Hordle.Types
+                 , Hordle.Dict
+                 , Hordle.Solver.Internal
+                 , Hordle.Solver.LookAhead
+                 , Hordle.Solver.Solve
+                 , Hordle.UI.UI
+                 , Hordle.UI.Solver
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
@@ -70,15 +69,14 @@ executable stats
 test-suite test-hordle
     type:       exitcode-stdio-1.0
     main-is:    Main.hs
-    other-modules: Hordle.UI.Solver
-                  , Hordle.UI.LookAhead
-                  , Hordle.Dict
-                  , Hordle.Hordle
-                  , Hordle.Solver.Internal
-                  , Hordle.Solver.LookAhead
-                  , Hordle.Solver.Solve
-                  , Hordle.Types
-                  , Hordle.UI.UI
+    other-modules: Hordle.Hordle
+                 , Hordle.Types
+                 , Hordle.Dict
+                 , Hordle.Solver.Internal
+                 , Hordle.Solver.LookAhead
+                 , Hordle.Solver.Solve
+                 , Hordle.UI.UI
+                 , Hordle.UI.Solver
     hs-source-dirs: test, app
     build-depends: base ^>=4.15.0.0
                  , text ^>=1.2.5.0

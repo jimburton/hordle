@@ -19,7 +19,8 @@ module Hordle.Types
   , guess
   , done
   , success
-  , blacklist ) where
+  , blacklist
+  , HintFunction ) where
 
 import Lens.Micro.TH (makeLenses)
 import Data.Set (Set)
@@ -47,3 +48,5 @@ data Game = Game
   } deriving (Show)
 
 $(makeLenses ''Game)
+
+type HintFunction = Game -> IO (Maybe Text)

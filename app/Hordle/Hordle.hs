@@ -72,8 +72,8 @@ mapAttempt g a = g & info %~ updateMapWithAttempt a
 processInfo :: Text -> Text -> Game -> Game
 processInfo attempt target g =
   let sc = score attempt target in
-    mapAttempt g sc & numAttempts %~ (+1)
-                    & blacklist %~ (attempt:)
+    endGame $ mapAttempt g sc & numAttempts %~ (+1)
+                              & blacklist %~ (attempt:)
 
 -- | Best starting word? 
 firstWord :: Text
@@ -87,6 +87,7 @@ doGuess g attempt =
       & attempts %~ (a:)
       & numAttempts %~ (+1)
       & guess    ?~ attempt
+      & blacklist %~ (attempt:)
 
 -- | Set the status of each char in a guess.
 score :: Text  -- ^ The attempt.

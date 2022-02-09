@@ -12,83 +12,72 @@ but whose info map is kept in sync with that of the real game. Candidate words
 are submitted as guesses to the testbed game, then one which yields the fewest
 subsequent possibilities is chosen.
 -}
-module Hordle.UI.Solver where
+module Hordle.UI.Solver
+  (solve
+  , solveWithWord
+  , solveAll ) where
 
 import           System.IO
-import           Lens.Micro ((&),(^.),(.~))
+import           Lens.Micro ((^.))
 import           Data.Time (getCurrentTime) 
 import           Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import           Hordle.Hordle
-  ( initGameWithWord
+  ( initGame
+  , initGameWithWord
   , firstGuess
-  , processInfo )
+  , doGuess )
 import           Hordle.Types
   ( Game
   , word
-  , numAttempts
   , done
-  , success )
-import           Hordle.Dict (targets, getTarget)
-import           Hordle.Solver.Solve (hint)
+  , HintFunction )
+import           Hordle.Dict (targets)
 import qualified Hordle.Solver.Internal as HSI
 import           Hordle.UI.UI (logEntry)
 
--- | Play an automated game with the real solver.
-solve :: Handle -> IO Game
-solve h = getTarget >>= solveWithWord h
+-- * Solving puzzles
 
--- | Take a turn in an automated game with the real solver.
-solveTurn :: Handle
-          -> (Game, Game) -- ^ A pair of the "real" game with the secret word and a game which
-                          -- acts as a testbed. The info map in the testbed is updated with
-                          -- results from the real game whenever guesses are submitted. 
-          -> IO Game
-solveTurn h (rg,pg) =
-  if pg ^. done
-  then do let pg' = setDone pg (rg ^. word)
-          TIO.hPutStrLn h (logEntry pg')
-          hFlush h
-          pure pg'
-  else do mg <- hint pg
-          case mg of
-            Nothing  -> do TIO.putStrLn "Backtracking."
-                           solveTurn h (HSI.backtrack rg, HSI.backtrack pg)
-            (Just t) -> do TIO.putStrLn ("Trying "<>t)
-                           if t == rg ^. word
-                             then do let pg' = setDone pg t
-                                     TIO.hPutStrLn h (logEntry pg')
-                                     hFlush h
-                                     pure pg'
-                             else do let pg' = processInfo t (rg ^. word) pg 
-                                     solveTurn h (rg,pg')
+-- | Start a game with a random target and a solver.
+solve :: Handle -> HintFunction -> IO Game
+solve h hf = do
+  g <- initGame
+  solveTurn h hf (firstGuess g)
 
--- | Set the fields of a solved testbed game which is done.
-setDone :: Game -- ^ The testbed game
-        -> Text -- ^ The secret word it was trying to guess
-        -> Game
-setDone g t = g & word .~ t
-                & success .~ (g ^. numAttempts < 7)
-                & done .~ True
-  
 -- | Start a game with a given word and a solver.
-solveWithWord :: Handle -> Text -> IO Game
-solveWithWord h w = do
-  TIO.putStrLn ("SOLVING: "<> w)
-  let rg = firstGuess $ initGameWithWord w
-      pg = rg & word .~ ""
-  solveTurn h (rg, pg)
+solveWithWord :: Handle -> HintFunction -> Text -> IO Game
+solveWithWord h hf w = solveTurn h hf (firstGuess $ initGameWithWord w)
 
 -- | Run the solver against all words.
-solveAll :: IO ()
-solveAll = do
-  h <- openFile "etc/solver.log" WriteMode
+solveAll :: HintFunction -> IO ()
+solveAll hf = do
+  h <- openFile "etc/solver-lookahead.log" WriteMode
   begin <- getCurrentTime
   TIO.hPutStrLn h (T.pack $ show begin)
-  hFlush h
-  targets >>= mapM_ (solveWithWord h)
+  targets >>= mapM_ (solveWithWord h hf)
   end <- getCurrentTime
   TIO.hPutStrLn h (T.pack $ show end)
   hClose h
 
+-- | Take a turn in an automated game with a given hint function.
+solveTurn :: Handle
+          -> HintFunction
+          -> Game
+          -> IO Game
+solveTurn h hf g =
+  if g ^. done
+  then do TIO.hPutStrLn h (logEntry g)
+          hFlush h
+          pure g
+  else do mg <- hf g
+          case mg of
+            Nothing  -> do -- TIO.putStrLn "Backtracking."
+                           solveTurn h hf (HSI.backtrack g)
+            (Just t) -> do -- TIO.putStrLn ("Trying "<>t)
+                           let g' = doGuess g t
+                           if t == g' ^. word
+                             then do TIO.hPutStrLn h (logEntry g')
+                                     hFlush h
+                                     pure g'
+                             else solveTurn h hf g'

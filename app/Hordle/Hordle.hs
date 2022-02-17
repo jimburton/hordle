@@ -35,7 +35,8 @@ import           Hordle.Dict (getTarget)
 
 -- | Set the booleans that determine whether the game is over.
 endGame :: Game -> Game
-endGame g = let won = not (null $ g ^. attempts) && all (isGreen . snd) (head (g ^. attempts)) in
+endGame g = let won = not (null $ g ^. attempts)
+                  && all (isGreen . snd) (head (g ^. attempts)) in
               g & success .~ won
 -- | Predicates for types of CharInfo.
 isGreen :: CharInfo -> Bool

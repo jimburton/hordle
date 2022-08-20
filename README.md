@@ -128,7 +128,7 @@ updated `_info` map.
 ## Creating games
 
 Some of the functions that create new games run in the IO monad,
-whereas some are pure. This is becuase some of them need access to a
+whereas some are pure. This is because some of them need access to a
 dictionary in order to pick a random starting word. In fact, the game
 uses two dictionaries: a relatively short one for target words, and a
 more complete one for checking guesses against.

@@ -2,7 +2,7 @@
 {-|
 Module      : Hordle.Solver.Solve
 Description : Solver for Hordle word games.
-Maintainer  : j.burton@brighton.ac.uk
+Maintainer  : jimburton1@gmail.com
 Stability   : experimental
 Portability : POSIX
 

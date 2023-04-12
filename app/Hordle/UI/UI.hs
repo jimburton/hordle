@@ -1,7 +1,7 @@
 {-|
 Module      : Hordle.UI
 Description : Frontend for playing Hordle.
-Maintainer  : j.burton@brighton.ac.uk
+Maintainer  : jimburton1@gmail.com
 Stability   : experimental
 Portability : POSIX
 
@@ -19,17 +19,16 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import           Data.List (intercalate)
 import           Lens.Micro ((^.))
-import           System.Console.Haskeline
-import           Data.Time (getCurrentTime) 
-import           System.IO
+import System.Console.Haskeline
+    ( defaultSettings, getInputLine, runInputT, InputT )
 import           Control.Monad.IO.Class (liftIO)
 import           Hordle.Hordle
   ( doGuess
   , emptyGame
   , processInfo
-  , firstGuess
-  , initGame
-  , initGameWithWord )
+  
+  
+   )
 import           Hordle.Types
   ( Game
   , word
@@ -38,9 +37,8 @@ import           Hordle.Types
   , done
   , success
   , CharInfo(..))
-import           Hordle.Dict (targets, isDictWord)
+import           Hordle.Dict (isDictWord)
 import qualified Hordle.Solver.Solve as HS
-import qualified Hordle.Solver.LookAhead as LA
 import qualified Hordle.Solver.Internal as HSI
 
 -- * CLI functions.

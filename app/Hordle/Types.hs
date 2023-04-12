@@ -2,7 +2,7 @@
 {-|
 Module      : Hordle.Types
 Description : Types for Hordle.
-Maintainer  : j.burton@brighton.ac.uk
+Maintainer  : jimburton1@gmail.com
 Stability   : experimental
 Portability : POSIX
 

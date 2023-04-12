@@ -14,7 +14,7 @@ version:            0.1.0.0
 -- The license under which the package is released.
 -- license:
 author:             James Burton
-maintainer:         j.burton@brighton.ac.uk
+maintainer:         jimburton1@gmail.com
 
 -- A copyright notice.
 -- copyright:
@@ -36,8 +36,8 @@ executable hordle
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
-    build-depends:    base ^>=4.15.0.0
-                    , text ^>=1.2.5.0
+    build-depends:    base>=4.15.0.0
+                    , text>=1.2.5.0
                     , random
                     , time
                     , containers
@@ -58,8 +58,8 @@ executable stats
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
-    build-depends:    base ^>=4.15.0.0
-                    , text ^>=1.2.5.0
+    build-depends:    base>=4.15.0.0
+                    , text>=1.2.5.0
                     , time
                     , vector
     hs-source-dirs:   app
@@ -78,8 +78,8 @@ test-suite test-hordle
                  , Hordle.UI.UI
                  , Hordle.UI.Solver
     hs-source-dirs: test, app
-    build-depends: base ^>=4.15.0.0
-                 , text ^>=1.2.5.0
+    build-depends: base>=4.15.0.0
+                 , text>=1.2.5.0
                  , time
                  , random
                  , containers

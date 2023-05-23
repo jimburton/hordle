@@ -66,8 +66,9 @@ doGuessBlind :: Game -- ^ The testbed game.
              -> Game
 doGuessBlind g attempt =
   let a = score attempt (g ^. info) in
-    H.endGame $ g & info %~ H.updateMapWithAttempt a
-      & attempts %~ (a:)
+    H.endGame $ g
+      & info        %~ H.updateMapWithAttempt a
+      & attempts    %~ (a:)
       & numAttempts %~ (+1)
-      & guess    ?~ attempt
-      & blacklist %~ (attempt:)
+      & guess       ?~ attempt
+      & blacklist   %~ (attempt:)

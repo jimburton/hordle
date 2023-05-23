@@ -37,7 +37,7 @@ executable hordle
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
     build-depends:    base>=4.15.0.0
-                    , text>=1.2.5.0
+                    , text
                     , random
                     , time
                     , containers
@@ -59,7 +59,7 @@ executable stats
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
     build-depends:    base>=4.15.0.0
-                    , text>=1.2.5.0
+                    , text
                     , time
                     , vector
     hs-source-dirs:   app
@@ -79,7 +79,7 @@ test-suite test-hordle
                  , Hordle.UI.Solver
     hs-source-dirs: test, app
     build-depends: base>=4.15.0.0
-                 , text>=1.2.5.0
+                 , text
                  , time
                  , random
                  , containers
